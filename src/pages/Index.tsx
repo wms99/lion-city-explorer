@@ -81,7 +81,10 @@ const Index = () => {
       <div className="p-6 bg-gradient-to-b from-background/0 to-background">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 -mt-16 relative z-10">
-            <Card className="bg-card/80 backdrop-blur-sm shadow-card hover:shadow-elegant transition-smooth cursor-pointer">
+            <Card 
+              className="bg-card/80 backdrop-blur-sm shadow-card hover:shadow-elegant transition-smooth cursor-pointer"
+              onClick={() => window.location.href = '/tourist-spots'}
+            >
               <CardContent className="p-6 text-center">
                 <MapPin className="h-10 w-10 text-primary mx-auto mb-3" />
                 <h3 className="font-semibold text-lg mb-2">Explore Spots</h3>
@@ -89,7 +92,10 @@ const Index = () => {
               </CardContent>
             </Card>
             
-            <Card className="bg-card/80 backdrop-blur-sm shadow-card hover:shadow-elegant transition-smooth cursor-pointer">
+            <Card 
+              className="bg-card/80 backdrop-blur-sm shadow-card hover:shadow-elegant transition-smooth cursor-pointer"
+              onClick={() => window.location.href = '/itinerary'}
+            >
               <CardContent className="p-6 text-center">
                 <Calendar className="h-10 w-10 text-secondary mx-auto mb-3" />
                 <h3 className="font-semibold text-lg mb-2">Plan Itinerary</h3>
@@ -97,7 +103,10 @@ const Index = () => {
               </CardContent>
             </Card>
             
-            <Card className="bg-card/80 backdrop-blur-sm shadow-card hover:shadow-elegant transition-smooth cursor-pointer">
+            <Card 
+              className="bg-card/80 backdrop-blur-sm shadow-card hover:shadow-elegant transition-smooth cursor-pointer"
+              onClick={() => window.location.href = '/transport'}
+            >
               <CardContent className="p-6 text-center">
                 <Bus className="h-10 w-10 text-accent mx-auto mb-3" />
                 <h3 className="font-semibold text-lg mb-2">Transport</h3>
