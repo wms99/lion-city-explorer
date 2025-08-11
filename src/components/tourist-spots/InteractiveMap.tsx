@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import mapImage from "@/assets/singapore-map.jpg";
+import mapImage from "@/assets/singapore-map-english.jpg";
 
 export function InteractiveMap() {
   const [selectedAttraction, setSelectedAttraction] = useState<Attraction | null>(null);
