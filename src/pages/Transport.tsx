@@ -18,6 +18,7 @@ import {
   Zap
 } from "lucide-react";
 import { singaporeAttractions, type Attraction } from "@/data/attractions";
+import { oneMapService } from "@/services/oneMapService";
 
 interface ItineraryItem {
   id: string;
@@ -27,12 +28,13 @@ interface ItineraryItem {
 }
 
 interface TransportOption {
-  type: 'mrt' | 'bus' | 'taxi' | 'grab' | 'walk';
+  type: 'mrt' | 'bus' | 'taxi' | 'grab' | 'walk' | 'public_transport';
   duration: string;
   cost: string;
   description: string;
   steps: string[];
   walkingTime?: string;
+  realRouteData?: any; // OneMap route data
 }
 
 interface RouteSegment {
@@ -68,7 +70,7 @@ const Transport = () => {
       setAttractions(attractionDetails);
       
       if (attractionDetails.length >= 2) {
-        generateRoutes(attractionDetails);
+        generateRoutes(attractionDetails).catch(console.error);
       }
     };
 
@@ -86,11 +88,146 @@ const Transport = () => {
     return R * c;
   };
 
-  const generateTransportOptions = (distance: number, from: string, to: string): TransportOption[] => {
+  const generateTransportOptions = async (distance: number, from: string, to: string, fromCoords: { lat: number; lng: number }, toCoords: { lat: number; lng: number }): Promise<TransportOption[]> => {
     const options: TransportOption[] = [];
     
-    // Walking option (always available)
-    const walkTime = Math.ceil(distance * 12); // ~12 min per km
+    try {
+      // Get real routing data from OneMap
+      const [walkRoute, ptRoute, driveRoute] = await Promise.all([
+        oneMapService.getWalkingRoute(fromCoords.lat, fromCoords.lng, toCoords.lat, toCoords.lng),
+        oneMapService.getPublicTransportRoute(fromCoords.lat, fromCoords.lng, toCoords.lat, toCoords.lng),
+        oneMapService.getDrivingRoute(fromCoords.lat, fromCoords.lng, toCoords.lat, toCoords.lng)
+      ]);
+
+      // Walking option (with real route data)
+      if (walkRoute && walkRoute.route_summary) {
+        const walkTime = Math.round(walkRoute.route_summary.total_time / 60);
+        const walkDistance = oneMapService.formatDistance(walkRoute.route_summary.total_distance);
+        
+        options.push({
+          type: 'walk',
+          duration: oneMapService.formatTime(walkRoute.route_summary.total_time),
+          cost: 'Free',
+          description: `Walk directly (${walkDistance})`,
+          steps: walkRoute.route_instructions?.map(instruction => instruction.instruction) || [`Walk from ${from} to ${to}`],
+          walkingTime: `${walkTime} min`,
+          realRouteData: walkRoute
+        });
+      } else {
+        // Fallback to distance calculation
+        const walkTime = Math.ceil(distance * 12);
+        options.push({
+          type: 'walk',
+          duration: `${walkTime} min`,
+          cost: 'Free',
+          description: 'Walk directly to destination',
+          steps: [`Walk from ${from} to ${to}`],
+          walkingTime: `${walkTime} min`
+        });
+      }
+
+      // Public Transport option (MRT + Bus combined using OneMap)
+      if (ptRoute && ptRoute.route_summary) {
+        const ptTime = oneMapService.formatTime(ptRoute.route_summary.total_time);
+        const ptDistance = oneMapService.formatDistance(ptRoute.route_summary.total_distance);
+        
+        options.push({
+          type: 'public_transport',
+          duration: ptTime,
+          cost: 'S$1.07 - S$2.50',
+          description: `Public Transport (${ptDistance})`,
+          steps: ptRoute.route_instructions?.map(instruction => instruction.instruction) || [
+            `Take MRT/Bus from ${from}`,
+            `Travel via public transport`,
+            `Arrive at ${to}`
+          ],
+          realRouteData: ptRoute
+        });
+      }
+
+      // Individual MRT/Bus options (fallback)
+      if (distance > 0.5) {
+        const mrtTime = Math.ceil(distance * 8 + 10);
+        options.push({
+          type: 'mrt',
+          duration: `${mrtTime} min`,
+          cost: 'S$1.40 - S$2.50',
+          description: 'Take MRT (Mass Rapid Transit)',
+          steps: [
+            `Walk to nearest MRT station (5-8 min)`,
+            `Take MRT towards destination`,
+            `Walk from MRT station to ${to} (5-8 min)`
+          ]
+        });
+      }
+
+      const busTime = Math.ceil(distance * 10 + 8);
+      options.push({
+        type: 'bus',
+        duration: `${busTime} min`,
+        cost: 'S$1.07 - S$2.17',
+        description: 'Take public bus',
+        steps: [
+          `Walk to nearest bus stop (3-5 min)`,
+          `Take bus towards destination`,
+          `Walk from bus stop to ${to} (3-5 min)`
+        ]
+      });
+
+      // Taxi/Grab options (with real driving route data)
+      if (distance > 1 || (driveRoute && driveRoute.route_summary)) {
+        let taxiTime, taxiCost, grabCost;
+        
+        if (driveRoute && driveRoute.route_summary) {
+          taxiTime = oneMapService.formatTime(driveRoute.route_summary.total_time);
+          const distanceKm = driveRoute.route_summary.total_distance / 1000;
+          
+          const taxiEstimate = oneMapService.estimateTaxiCost(distanceKm);
+          const grabEstimate = oneMapService.estimateGrabCost(distanceKm);
+          
+          taxiCost = `S$${taxiEstimate.min} - S$${taxiEstimate.max}`;
+          grabCost = `S$${grabEstimate.min} - S$${grabEstimate.max}`;
+        } else {
+          // Fallback calculations
+          taxiTime = `${Math.ceil(distance * 5 + 5)} min`;
+          const estimatedCost = Math.ceil(distance * 2 + 6);
+          taxiCost = `S$${estimatedCost} - S$${estimatedCost + 5}`;
+          grabCost = `S$${estimatedCost - 2} - S$${estimatedCost + 3}`;
+        }
+        
+        options.push({
+          type: 'taxi',
+          duration: taxiTime,
+          cost: taxiCost,
+          description: 'Take taxi or ComfortDelGro cab',
+          steps: [`Take taxi directly to ${to}`],
+          realRouteData: driveRoute
+        });
+
+        options.push({
+          type: 'grab',
+          duration: taxiTime,
+          cost: grabCost,
+          description: 'Book Grab ride',
+          steps: [`Book Grab ride to ${to}`],
+          realRouteData: driveRoute
+        });
+      }
+
+    } catch (error) {
+      console.error('Error fetching routes from OneMap:', error);
+      // Fallback to original distance-based calculations
+      return generateFallbackOptions(distance, from, to);
+    }
+
+    return options;
+  };
+
+  const generateFallbackOptions = (distance: number, from: string, to: string): TransportOption[] => {
+    // Original distance-based calculations as fallback
+    const options: TransportOption[] = [];
+    
+    const walkTime = Math.ceil(distance * 12);
     options.push({
       type: 'walk',
       duration: `${walkTime} min`,
@@ -100,9 +237,8 @@ const Transport = () => {
       walkingTime: `${walkTime} min`
     });
 
-    // MRT option (for distances > 0.5km)
     if (distance > 0.5) {
-      const mrtTime = Math.ceil(distance * 8 + 10); // ~8 min per km + 10 min overhead
+      const mrtTime = Math.ceil(distance * 8 + 10);
       options.push({
         type: 'mrt',
         duration: `${mrtTime} min`,
@@ -116,8 +252,7 @@ const Transport = () => {
       });
     }
 
-    // Bus option
-    const busTime = Math.ceil(distance * 10 + 8); // ~10 min per km + 8 min overhead
+    const busTime = Math.ceil(distance * 10 + 8);
     options.push({
       type: 'bus',
       duration: `${busTime} min`,
@@ -130,10 +265,9 @@ const Transport = () => {
       ]
     });
 
-    // Taxi/Grab for longer distances
     if (distance > 1) {
-      const taxiTime = Math.ceil(distance * 5 + 5); // ~5 min per km + pickup time
-      const estimatedCost = Math.ceil(distance * 2 + 6); // Base fare + distance
+      const taxiTime = Math.ceil(distance * 5 + 5);
+      const estimatedCost = Math.ceil(distance * 2 + 6);
       
       options.push({
         type: 'taxi',
@@ -155,9 +289,10 @@ const Transport = () => {
     return options;
   };
 
-  const generateRoutes = (attractionList: Attraction[]) => {
+  const generateRoutes = async (attractionList: Attraction[]) => {
     const segments: RouteSegment[] = [];
     
+    // Generate route segments with real OneMap data
     for (let i = 0; i < attractionList.length - 1; i++) {
       const from = attractionList[i];
       const to = attractionList[i + 1];
@@ -166,7 +301,13 @@ const Transport = () => {
         to.coordinates.lat, to.coordinates.lng
       );
       
-      const transportOptions = generateTransportOptions(distance, from.name, to.name);
+      const transportOptions = await generateTransportOptions(
+        distance, 
+        from.name, 
+        to.name,
+        from.coordinates,
+        to.coordinates
+      );
       
       segments.push({
         from: from.name,
@@ -192,8 +333,10 @@ const Transport = () => {
       comfort: segments.map(segment => ({
         ...segment,
         recommended: segment.distance > 1.5 
-          ? segment.transportOptions.find(opt => opt.type === 'grab' || opt.type === 'taxi') || segment.transportOptions[0]
-          : segment.transportOptions.find(opt => opt.type === 'mrt') || segment.transportOptions[0]
+          ? segment.transportOptions.find(opt => opt.type === 'grab' || opt.type === 'taxi') || 
+            segment.transportOptions.find(opt => opt.type === 'public_transport') || 
+            segment.transportOptions[0]
+          : segment.transportOptions.find(opt => opt.type === 'public_transport' || opt.type === 'mrt') || segment.transportOptions[0]
       })),
       speed: segments.map(segment => ({
         ...segment,
@@ -210,6 +353,7 @@ const Transport = () => {
     switch (type) {
       case 'mrt': return <Train className="h-4 w-4" />;
       case 'bus': return <Bus className="h-4 w-4" />;
+      case 'public_transport': return <Train className="h-4 w-4" />;
       case 'taxi':
       case 'grab': return <Car className="h-4 w-4" />;
       case 'walk': return <Footprints className="h-4 w-4" />;
@@ -221,6 +365,7 @@ const Transport = () => {
     switch (type) {
       case 'mrt': return 'bg-blue-500';
       case 'bus': return 'bg-green-500';
+      case 'public_transport': return 'bg-indigo-500';
       case 'taxi': return 'bg-yellow-500';
       case 'grab': return 'bg-purple-500';
       case 'walk': return 'bg-gray-500';
