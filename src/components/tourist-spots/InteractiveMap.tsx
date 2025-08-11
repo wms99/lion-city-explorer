@@ -66,10 +66,26 @@ export function InteractiveMap() {
         >
           <div className="relative">
             <MapPin 
-              className="w-6 h-6 text-primary drop-shadow-lg group-hover:text-primary-light transition-colors" 
+              className={`w-6 h-6 drop-shadow-lg group-hover:scale-110 transition-all ${
+                attraction.category === 'food' 
+                  ? 'text-orange-500' 
+                  : attraction.category === 'tourist'
+                  ? 'text-blue-500'
+                  : attraction.category === 'culture'
+                  ? 'text-purple-500'
+                  : 'text-green-500'
+              }`}
               fill="currentColor"
             />
-            <div className="absolute -top-2 -left-2 w-10 h-10 bg-primary/20 rounded-full animate-ping opacity-75 group-hover:opacity-100"></div>
+            <div className={`absolute -top-2 -left-2 w-10 h-10 rounded-full animate-ping opacity-75 group-hover:opacity-100 ${
+              attraction.category === 'food' 
+                ? 'bg-orange-500/20' 
+                : attraction.category === 'tourist'
+                ? 'bg-blue-500/20'
+                : attraction.category === 'culture'
+                ? 'bg-purple-500/20'
+                : 'bg-green-500/20'
+            }`}></div>
           </div>
           
           {/* Tooltip on hover */}

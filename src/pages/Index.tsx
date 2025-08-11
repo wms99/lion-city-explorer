@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { WeatherCard } from "@/components/home/WeatherCard";
 import { EventsCard } from "@/components/home/EventsCard";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import heroImage from "@/assets/singapore-hero.jpg";
 
 const Index = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [userName, setUserName] = useState("");
   const [showNameInput, setShowNameInput] = useState(false);
 
@@ -83,7 +85,7 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 -mt-16 relative z-10">
             <Card 
               className="bg-card/80 backdrop-blur-sm shadow-card hover:shadow-elegant transition-smooth cursor-pointer"
-              onClick={() => window.location.href = '/tourist-spots'}
+              onClick={() => navigate('/tourist-spots')}
             >
               <CardContent className="p-6 text-center">
                 <MapPin className="h-10 w-10 text-primary mx-auto mb-3" />
@@ -94,7 +96,7 @@ const Index = () => {
             
             <Card 
               className="bg-card/80 backdrop-blur-sm shadow-card hover:shadow-elegant transition-smooth cursor-pointer"
-              onClick={() => window.location.href = '/itinerary'}
+              onClick={() => navigate('/itinerary')}
             >
               <CardContent className="p-6 text-center">
                 <Calendar className="h-10 w-10 text-secondary mx-auto mb-3" />
@@ -105,7 +107,7 @@ const Index = () => {
             
             <Card 
               className="bg-card/80 backdrop-blur-sm shadow-card hover:shadow-elegant transition-smooth cursor-pointer"
-              onClick={() => window.location.href = '/transport'}
+              onClick={() => navigate('/transport')}
             >
               <CardContent className="p-6 text-center">
                 <Bus className="h-10 w-10 text-accent mx-auto mb-3" />
