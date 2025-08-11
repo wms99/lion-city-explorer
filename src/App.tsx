@@ -9,7 +9,7 @@ import TouristSpots from "./pages/TouristSpots";
 import Itinerary from "./pages/Itinerary";
 import Transport from "./pages/Transport";
 import Settings from "./pages/Settings";
-import "./i18n";
+import { AppLayout } from "./components/layout/AppLayout";
 
 const queryClient = new QueryClient();
 
@@ -19,15 +19,17 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/tourist-spots" element={<TouristSpots />} />
-          <Route path="/itinerary" element={<Itinerary />} />
-          <Route path="/transport" element={<Transport />} />
-          <Route path="/settings" element={<Settings />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AppLayout>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/tourist-spots" element={<TouristSpots />} />
+            <Route path="/itinerary" element={<Itinerary />} />
+            <Route path="/transport" element={<Transport />} />
+            <Route path="/settings" element={<Settings />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AppLayout>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
