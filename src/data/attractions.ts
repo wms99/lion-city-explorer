@@ -10,8 +10,8 @@ export interface Attraction {
   budgetCategory: 'budget' | 'mid-range' | 'luxury';
   images: string[];
   coordinates: {
-    x: number; // percentage from left
-    y: number; // percentage from top
+    lat: number; // latitude
+    lng: number; // longitude
   };
   highlights: string[];
   nearbyFood?: string[];
@@ -29,7 +29,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "SkyPark: S$25 adults, S$20 children",
     budgetCategory: "luxury",
     images: ["/placeholder.svg"],
-    coordinates: { x: 65, y: 55 },
+    coordinates: { lat: 1.2834, lng: 103.8607 },
     highlights: ["Infinity Pool", "SkyPark", "Shopping Mall", "Casino", "Fine Dining"],
     nearbyFood: ["CÉ LA VIE Restaurant", "Bread Street Kitchen", "Waku Ghin"]
   },
@@ -44,7 +44,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "Outdoor gardens: Free, Conservatories: S$28 adults",
     budgetCategory: "mid-range",
     images: ["/placeholder.svg"],
-    coordinates: { x: 67, y: 60 },
+    coordinates: { lat: 1.2816, lng: 103.8636 },
     highlights: ["Supertree Grove", "Cloud Forest", "Flower Dome", "Light Show", "OCBC Skyway"],
     nearbyFood: ["Pollen Restaurant", "IndoCHine", "Satay by the Bay"]
   },
@@ -59,7 +59,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "Island entry: S$1, Attractions vary",
     budgetCategory: "mid-range",
     images: ["/placeholder.svg"],
-    coordinates: { x: 55, y: 80 },
+    coordinates: { lat: 1.2494, lng: 103.8303 },
     highlights: ["Universal Studios", "S.E.A. Aquarium", "Adventure Cove", "Beaches", "Cable Car"],
     nearbyFood: ["Coastes", "Tanjong Beach Club", "Greenwood Fish Market"]
   },
@@ -74,7 +74,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "S$39 adults, S$26 children",
     budgetCategory: "mid-range",
     images: ["/placeholder.svg"],
-    coordinates: { x: 45, y: 25 },
+    coordinates: { lat: 1.4043, lng: 103.7930 },
     highlights: ["Orangutan Breakfast", "Elephant Show", "Reptile Garden", "Tram Ride", "White Rhino"],
     nearbyFood: ["Ah Meng Restaurant", "Inuka Café", "Ben & Jerry's"]
   },
@@ -89,7 +89,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "Free to explore",
     budgetCategory: "budget",
     images: ["/placeholder.svg"],
-    coordinates: { x: 58, y: 52 },
+    coordinates: { lat: 1.2821, lng: 103.8442 },
     highlights: ["Buddha Tooth Relic Temple", "Chinatown Street Market", "Heritage Centre", "Traditional Medicine Hall"],
     nearbyFood: ["Maxwell Food Centre", "Chinatown Complex", "Tian Tian Hainanese Chicken Rice"]
   },
@@ -104,7 +104,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "Free to walk, shopping varies",
     budgetCategory: "luxury",
     images: ["/placeholder.svg"],
-    coordinates: { x: 52, y: 45 },
+    coordinates: { lat: 1.3048, lng: 103.8318 },
     highlights: ["ION Orchard", "Takashimaya", "Ngee Ann City", "313@Somerset", "Emerald Hill"],
     nearbyFood: ["Din Tai Fung", "Crystal Jade", "Tim Ho Wan", "Food Republic"]
   },
@@ -119,7 +119,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "S$3-8 per dish",
     budgetCategory: "budget",
     images: ["/placeholder.svg"],
-    coordinates: { x: 60, y: 48 },
+    coordinates: { lat: 1.3049, lng: 103.8454 },
     highlights: ["Chicken Rice", "Laksa", "Satay", "Char Kway Teow", "Rojak"],
     nearbyFood: ["Lau Pa Sat", "Newton Food Centre", "Chinatown Complex", "Tekka Centre"]
   },
@@ -134,7 +134,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "S$35 adults, S$25 children",
     budgetCategory: "mid-range",
     images: ["/placeholder.svg"],
-    coordinates: { x: 70, y: 50 },
+    coordinates: { lat: 1.2929, lng: 103.8547 },
     highlights: ["360° City Views", "Capsule Dining", "Photography", "Sunset Views", "Marina Bay Views"],
     nearbyFood: ["Singapore Flyer Sky Dining", "Kopitiam", "1-Altitude Gallery & Bar"]
   },
@@ -149,7 +149,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "Free",
     budgetCategory: "budget",
     images: ["/placeholder.svg"],
-    coordinates: { x: 63, y: 53 },
+    coordinates: { lat: 1.2866, lng: 103.8545 },
     highlights: ["Iconic Photo Spot", "Marina Bay Views", "Singapore Symbol", "Waterfront Walk"],
     nearbyFood: ["Fullerton Bay Hotel", "The Clifford Pier", "One Fullerton"]
   },
@@ -164,7 +164,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "S$79 adults, S$59 children",
     budgetCategory: "luxury",
     images: ["/placeholder.svg"],
-    coordinates: { x: 55, y: 82 },
+    coordinates: { lat: 1.2540, lng: 103.8238 },
     highlights: ["Transformers Ride", "Jurassic Park", "Shrek 4-D Adventure", "Battlestar Galactica", "Movie Magic"],
     nearbyFood: ["Mel's Drive-In", "Discovery Food Court", "KT's Grill"]
   },
@@ -179,7 +179,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "Free (Orchid Garden: S$5 adults)",
     budgetCategory: "budget",
     images: ["/placeholder.svg"],
-    coordinates: { x: 48, y: 42 },
+    coordinates: { lat: 1.3138, lng: 103.8159 },
     highlights: ["National Orchid Garden", "Swan Lake", "Heritage Trees", "Concert Performances", "Nature Walks"],
     nearbyFood: ["Casa Verde", "Corner House", "Halia Restaurant"]
   },
@@ -194,7 +194,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "Free to explore",
     budgetCategory: "mid-range",
     images: ["/placeholder.svg"],
-    coordinates: { x: 59, y: 49 },
+    coordinates: { lat: 1.2884, lng: 103.8467 },
     highlights: ["River Cruise", "Nightlife", "Dining", "Historic Architecture", "Entertainment"],
     nearbyFood: ["Jumbo Seafood", "Long Beach Seafood", "Brewerkz", "Ministry of Sound"]
   },
@@ -209,7 +209,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "Free to explore",
     budgetCategory: "budget",
     images: ["/placeholder.svg"],
-    coordinates: { x: 57, y: 46 },
+    coordinates: { lat: 1.3067, lng: 103.8513 },
     highlights: ["Sri Veeramakaliamman Temple", "Mustafa Centre", "Tekka Centre", "Traditional Crafts", "Spice Shopping"],
     nearbyFood: ["Tekka Centre", "Banana Leaf Apolo", "Muthu's Curry", "Indian Heritage Centre Café"]
   },
@@ -224,7 +224,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "Free to explore",
     budgetCategory: "budget",
     images: ["/placeholder.svg"],
-    coordinates: { x: 61, y: 47 },
+    coordinates: { lat: 1.3014, lng: 103.8591 },
     highlights: ["Sultan Mosque", "Haji Lane", "Malay Heritage Centre", "Traditional Crafts", "Arab Street"],
     nearbyFood: ["Zam Zam Restaurant", "Piedra Negra", "Café Le Caire", "Turkish Delights"]
   },
@@ -239,7 +239,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "S$37 adults, S$25 children",
     budgetCategory: "mid-range",
     images: ["/placeholder.svg"],
-    coordinates: { x: 35, y: 65 },
+    coordinates: { lat: 1.3192, lng: 103.7065 },
     highlights: ["Waterfall Aviary", "African Wetlands", "Penguin Coast", "Bird Shows", "Breeding Programs"],
     nearbyFood: ["Bongo Burgers", "Song of the Sea", "Flamingo Pool Café"]
   },
@@ -254,7 +254,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "S$49 adults, S$33 children",
     budgetCategory: "mid-range",
     images: ["/placeholder.svg"],
-    coordinates: { x: 45, y: 23 },
+    coordinates: { lat: 1.4030, lng: 103.7894 },
     highlights: ["Tram Safari", "Walking Trails", "Animal Shows", "Fire Dance", "Nocturnal Animals"],
     nearbyFood: ["Ulu Ulu Safari Restaurant", "Bongo Burgers", "Ben & Jerry's"]
   },
@@ -269,7 +269,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "S$5-15 per dish",
     budgetCategory: "budget",
     images: ["/placeholder.svg"],
-    coordinates: { x: 53, y: 44 },
+    coordinates: { lat: 1.3120, lng: 103.8383 },
     highlights: ["BBQ Seafood", "Satay", "Carrot Cake", "Oyster Omelette", "Late Night Dining"],
     nearbyFood: ["Alliance Seafood", "Hup Kee Fried Oyster", "Newton Circus Satay"]
   },
@@ -284,7 +284,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "S$4-12 per dish",
     budgetCategory: "budget",
     images: ["/placeholder.svg"],
-    coordinates: { x: 64, y: 54 },
+    coordinates: { lat: 1.2804, lng: 103.8500 },
     highlights: ["Historic Architecture", "Satay Street", "Local Cuisine", "Central Location", "Night Market"],
     nearbyFood: ["Satay Stalls", "Ye Olde Breadshop", "Traditional Hokkien Mee", "Ice Kachang"]
   },
@@ -299,7 +299,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "S$5-18 per dish",
     budgetCategory: "budget",
     images: ["/placeholder.svg"],
-    coordinates: { x: 75, y: 62 },
+    coordinates: { lat: 1.3016, lng: 103.9067 },
     highlights: ["Seafood BBQ", "Laksa", "Chili Crab", "Beach Dining", "Cycling Nearby"],
     nearbyFood: ["Long Beach Seafood", "Roland Restaurant", "East Coast Lagoon Food Village"]
   },
@@ -314,7 +314,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "S$4-15 per dish",
     budgetCategory: "budget",
     images: ["/placeholder.svg"],
-    coordinates: { x: 42, y: 58 },
+    coordinates: { lat: 1.3115, lng: 103.7965 },
     highlights: ["Wanton Mee", "Chicken Rice", "International Food", "Bar Scene", "Expat Favorite"],
     nearbyFood: ["Holland Drive Food Centre", "Holland Village Shopping Centre", "Various Bars & Cafes"]
   },
@@ -329,7 +329,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "Free to visit lobby and shops",
     budgetCategory: "luxury",
     images: ["/placeholder.svg"],
-    coordinates: { x: 62, y: 48 },
+    coordinates: { lat: 1.2966, lng: 103.8544 },
     highlights: ["Singapore Sling", "Colonial Architecture", "Long Bar", "Luxury Shopping", "Historic Tours"],
     nearbyFood: ["Long Bar", "Tiffin Room", "La Dame de Pic", "Raffles Grill"]
   },
@@ -344,7 +344,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "Free",
     budgetCategory: "budget",
     images: ["/placeholder.svg"],
-    coordinates: { x: 38, y: 68 },
+    coordinates: { lat: 1.2820, lng: 103.7818 },
     highlights: ["Ten Courts of Hell", "Chinese Mythology", "Colorful Statues", "Educational Exhibits", "Unique Experience"],
     nearbyFood: ["Haw Par Villa Café", "Pasir Panjang Food Centre", "VivoCity Food Court"]
   },
@@ -359,7 +359,7 @@ export const singaporeAttractions: Attraction[] = [
     ticketPrice: "S$41 adults, S$29 children",
     budgetCategory: "mid-range",
     images: ["/placeholder.svg"],
-    coordinates: { x: 54, y: 81 },
+    coordinates: { lat: 1.2581, lng: 103.8197 },
     highlights: ["Open Ocean Gallery", "Shark Seas", "Dolphin Island", "Marine Life", "Educational Programs"],
     nearbyFood: ["Ocean Restaurant", "Feng Shui Inn", "Malaysian Food Street"]
   }

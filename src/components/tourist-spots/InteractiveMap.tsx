@@ -1,22 +1,105 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MapPin, X, Star, Clock, DollarSign, Plus } from "lucide-react";
 import { singaporeAttractions, getCategoryColor, getBudgetColor, type Attraction } from "@/data/attractions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import mapImage from "@/assets/singapore-map-english.jpg";
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix for default markers
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
 export function InteractiveMap() {
+  const mapRef = useRef<L.Map | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const markersRef = useRef<L.Marker[]>([]);
   const [selectedAttraction, setSelectedAttraction] = useState<Attraction | null>(null);
   const { toast } = useToast();
 
-  const handlePinClick = (attraction: Attraction) => {
-    setSelectedAttraction(attraction);
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    // Initialize map
+    mapRef.current = L.map(mapContainerRef.current).setView([1.3521, 103.8198], 11);
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 18,
+    }).addTo(mapRef.current);
+
+    // Add markers for each attraction
+    singaporeAttractions.forEach((attraction) => {
+      const iconColor = getMarkerColor(attraction.category);
+      
+      // Create custom icon
+      const customIcon = L.divIcon({
+        className: 'custom-marker',
+        html: `
+          <div class="relative">
+            <div class="w-8 h-8 ${iconColor} rounded-full flex items-center justify-center shadow-lg border-2 border-white cursor-pointer transform hover:scale-110 transition-transform">
+              <div class="w-3 h-3 bg-white rounded-full"></div>
+            </div>
+            <div class="absolute -top-1 -left-1 w-10 h-10 ${iconColor.replace('bg-', 'bg-opacity-20 bg-')} rounded-full animate-ping"></div>
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+      });
+
+      const marker = L.marker([attraction.coordinates.lat, attraction.coordinates.lng], {
+        icon: customIcon,
+      }).addTo(mapRef.current!);
+
+      // Add popup on click
+      marker.on('click', () => {
+        setSelectedAttraction(attraction);
+      });
+
+      // Add tooltip on hover
+      marker.bindTooltip(attraction.name, {
+        permanent: false,
+        direction: 'top',
+        offset: [0, -10],
+        className: 'custom-tooltip',
+      });
+
+      markersRef.current.push(marker);
+    });
+
+    // Cleanup function
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+      markersRef.current = [];
+    };
+  }, []);
+
+  const getMarkerColor = (category: Attraction['category']) => {
+    switch (category) {
+      case 'food':
+        return 'bg-orange-500';
+      case 'tourist':
+        return 'bg-blue-500';
+      case 'culture':
+        return 'bg-purple-500';
+      case 'shopping':
+        return 'bg-green-500';
+      default:
+        return 'bg-gray-500';
+    }
   };
 
   const handleAddToItinerary = (attraction: Attraction) => {
-    // For now, just show a toast. Later this will integrate with the itinerary system
     const savedItinerary = JSON.parse(localStorage.getItem('singapore-itinerary') || '[]');
     const isAlreadyAdded = savedItinerary.some((item: any) => item.id === attraction.id);
     
@@ -45,156 +128,156 @@ export function InteractiveMap() {
   };
 
   return (
-    <div className="relative w-full h-[600px] overflow-hidden rounded-xl border border-border shadow-card">
-      {/* Map Image */}
-      <img
-        src={mapImage}
-        alt="Singapore Map"
-        className="w-full h-full object-cover"
-      />
+    <>
+      <style>{`
+        .custom-marker {
+          background: none !important;
+          border: none !important;
+        }
+        .custom-tooltip {
+          background: rgba(0, 0, 0, 0.8) !important;
+          color: white !important;
+          border: none !important;
+          border-radius: 6px !important;
+          font-size: 12px !important;
+          padding: 4px 8px !important;
+        }
+        .custom-tooltip::before {
+          border-top-color: rgba(0, 0, 0, 0.8) !important;
+        }
+        .leaflet-popup-content-wrapper {
+          padding: 0 !important;
+        }
+        .leaflet-popup-content {
+          margin: 0 !important;
+        }
+      `}</style>
       
-      {/* Interactive Pins */}
-      {singaporeAttractions.map((attraction) => (
-        <button
-          key={attraction.id}
-          onClick={() => handlePinClick(attraction)}
-          className="absolute transform -translate-x-1/2 -translate-y-1/2 group hover:scale-110 transition-transform"
-          style={{
-            left: `${attraction.coordinates.x}%`,
-            top: `${attraction.coordinates.y}%`,
-          }}
-        >
-          <div className="relative">
-            <MapPin 
-              className={`w-6 h-6 drop-shadow-lg group-hover:scale-110 transition-all ${
-                attraction.category === 'food' 
-                  ? 'text-orange-500' 
-                  : attraction.category === 'tourist'
-                  ? 'text-blue-500'
-                  : attraction.category === 'culture'
-                  ? 'text-purple-500'
-                  : 'text-green-500'
-              }`}
-              fill="currentColor"
-            />
-            <div className={`absolute -top-2 -left-2 w-10 h-10 rounded-full animate-ping opacity-75 group-hover:opacity-100 ${
-              attraction.category === 'food' 
-                ? 'bg-orange-500/20' 
-                : attraction.category === 'tourist'
-                ? 'bg-blue-500/20'
-                : attraction.category === 'culture'
-                ? 'bg-purple-500/20'
-                : 'bg-green-500/20'
-            }`}></div>
-          </div>
-          
-          {/* Tooltip on hover */}
-          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-            <div className="bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-              {attraction.name}
+      <div className="relative w-full h-[600px] overflow-hidden rounded-xl border border-border shadow-card">
+        {/* Map Container */}
+        <div ref={mapContainerRef} className="w-full h-full" />
+        
+        {/* Legend */}
+        <div className="absolute top-4 right-4 bg-card/95 backdrop-blur-sm p-3 rounded-lg shadow-sm border border-border">
+          <h4 className="font-medium text-sm mb-2">Legend</h4>
+          <div className="space-y-1 text-xs">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span>Tourist Attractions</span>
             </div>
-            <div className="w-2 h-2 bg-black transform rotate-45 absolute top-full left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+              <span>Food Places</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+              <span>Cultural Sites</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span>Shopping</span>
+            </div>
           </div>
-        </button>
-      ))}
-
-      {/* Popup Modal */}
-      {selectedAttraction && (
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4 z-10">
-          <Card className="w-full max-w-md max-h-[80%] overflow-y-auto shadow-elegant">
-            <CardHeader className="relative pb-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedAttraction(null)}
-                className="absolute right-2 top-2 h-8 w-8 p-0"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-              
-              <div className="flex items-start space-x-3">
-                <div className="flex-1">
-                  <CardTitle className="text-lg font-semibold pr-8">
-                    {selectedAttraction.name}
-                  </CardTitle>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <Badge className={getCategoryColor(selectedAttraction.category)}>
-                      {selectedAttraction.category}
-                    </Badge>
-                    <Badge 
-                      variant="outline" 
-                      className={getBudgetColor(selectedAttraction.budgetCategory)}
-                    >
-                      {selectedAttraction.budgetCategory}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="space-y-4">
-              {/* Rating */}
-              <div className="flex items-center space-x-2">
-                <div className="flex items-center space-x-1">
-                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                  <span className="font-medium">{selectedAttraction.rating}</span>
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  ({selectedAttraction.reviewCount.toLocaleString()} reviews)
-                </span>
-              </div>
-
-              {/* Description */}
-              <p className="text-sm text-muted-foreground">
-                {selectedAttraction.description}
-              </p>
-
-              {/* Key Details */}
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2 text-sm">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span>{selectedAttraction.openingHours}</span>
-                </div>
-                <div className="flex items-center space-x-2 text-sm">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <span>{selectedAttraction.ticketPrice}</span>
-                </div>
-              </div>
-
-              {/* Highlights */}
-              <div>
-                <h4 className="font-medium text-sm mb-2">Highlights</h4>
-                <div className="flex flex-wrap gap-1">
-                  {selectedAttraction.highlights.map((highlight, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {highlight}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              {/* Nearby Food */}
-              {selectedAttraction.nearbyFood && (
-                <div>
-                  <h4 className="font-medium text-sm mb-2">Nearby Food</h4>
-                  <div className="text-sm text-muted-foreground">
-                    {selectedAttraction.nearbyFood.join(", ")}
-                  </div>
-                </div>
-              )}
-
-              {/* Action Button */}
-              <Button
-                onClick={() => handleAddToItinerary(selectedAttraction)}
-                className="w-full bg-gradient-ocean text-white hover:shadow-elegant transition-all"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add to Itinerary
-              </Button>
-            </CardContent>
-          </Card>
         </div>
-      )}
-    </div>
+
+        {/* Popup Modal */}
+        {selectedAttraction && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4 z-[1000]">
+            <Card className="w-full max-w-md max-h-[80%] overflow-y-auto shadow-elegant">
+              <CardHeader className="relative pb-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedAttraction(null)}
+                  className="absolute right-2 top-2 h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+                
+                <div className="flex items-start space-x-3">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg font-semibold pr-8">
+                      {selectedAttraction.name}
+                    </CardTitle>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <Badge className={getCategoryColor(selectedAttraction.category)}>
+                        {selectedAttraction.category}
+                      </Badge>
+                      <Badge 
+                        variant="outline" 
+                        className={getBudgetColor(selectedAttraction.budgetCategory)}
+                      >
+                        {selectedAttraction.budgetCategory}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="space-y-4">
+                {/* Rating */}
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1">
+                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    <span className="font-medium">{selectedAttraction.rating}</span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    ({selectedAttraction.reviewCount.toLocaleString()} reviews)
+                  </span>
+                </div>
+
+                {/* Description */}
+                <p className="text-sm text-muted-foreground">
+                  {selectedAttraction.description}
+                </p>
+
+                {/* Key Details */}
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2 text-sm">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedAttraction.openingHours}</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-sm">
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedAttraction.ticketPrice}</span>
+                  </div>
+                </div>
+
+                {/* Highlights */}
+                <div>
+                  <h4 className="font-medium text-sm mb-2">Highlights</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedAttraction.highlights.map((highlight, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {highlight}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Nearby Food */}
+                {selectedAttraction.nearbyFood && (
+                  <div>
+                    <h4 className="font-medium text-sm mb-2">Nearby Food</h4>
+                    <div className="text-sm text-muted-foreground">
+                      {selectedAttraction.nearbyFood.join(", ")}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Button */}
+                <Button
+                  onClick={() => handleAddToItinerary(selectedAttraction)}
+                  className="w-full bg-gradient-ocean text-white hover:shadow-elegant transition-all"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add to Itinerary
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
