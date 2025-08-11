@@ -35,45 +35,54 @@ export function AppSidebar() {
   const isExpanded = items.some((i) => isActive(i.url));
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive 
-      ? "bg-gradient-ocean text-white font-medium shadow-card" 
-      : "hover:bg-muted/80 hover:text-primary transition-smooth";
+      ? "bg-primary text-primary-foreground font-medium shadow-sm border-l-2 border-primary-light" 
+      : "hover:bg-muted/80 hover:text-foreground text-foreground/80 transition-smooth font-medium";
 
   return (
     <Sidebar
-      className="border-r border-border/50 bg-card/50 backdrop-blur-sm transition-smooth"
+      className="border-r border-border/50 bg-card/98 backdrop-blur-sm transition-smooth"
       collapsible="icon"
     >
-      <SidebarContent className="py-4">
+      <SidebarContent className="py-6">
         {/* Logo/Title */}
-        <div className="px-4 py-2 mb-4">
+        <div className="px-6 py-3 mb-6">
           {!collapsed ? (
-            <h1 className="text-xl font-bold bg-gradient-hero bg-clip-text text-transparent">
-              Singapore Touristy
-            </h1>
+            <div className="space-y-1">
+              <h1 className="text-xl font-bold text-foreground tracking-tight">
+                Singapore
+              </h1>
+              <p className="text-sm text-muted-foreground font-medium">
+                Travel Guide
+              </p>
+            </div>
           ) : (
-            <div className="w-8 h-8 bg-gradient-hero rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">S</span>
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-sm">
+              <span className="text-primary-foreground font-bold text-lg">S</span>
             </div>
           )}
         </div>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-muted-foreground font-medium">
+          <SidebarGroupLabel className="text-muted-foreground font-semibold text-xs uppercase tracking-wider px-6 pb-2">
             {!collapsed && "Navigation"}
           </SidebarGroupLabel>
 
-          <SidebarGroupContent>
+          <SidebarGroupContent className="px-3">
             <SidebarMenu className="space-y-1">
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="rounded-lg">
+                  <SidebarMenuButton asChild className="rounded-xl h-11 transition-smooth">
                     <NavLink 
                       to={item.url} 
                       end 
                       className={getNavCls}
                     >
-                      <item.icon className={`h-5 w-5 ${!collapsed ? 'mr-3' : ''}`} />
-                      {!collapsed && <span className="truncate">{item.title}</span>}
+                      <item.icon className={`h-5 w-5 ${!collapsed ? 'mr-3' : ''} flex-shrink-0`} />
+                      {!collapsed && (
+                        <span className="truncate text-sm font-medium">
+                          {item.title}
+                        </span>
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
