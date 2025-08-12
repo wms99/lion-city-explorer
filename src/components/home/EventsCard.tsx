@@ -15,6 +15,7 @@ interface Event {
   category: string;
   featured: boolean;
   image?: string;
+  websiteUrl: string;
 }
 
 // Mock events data
@@ -27,7 +28,8 @@ const mockEvents: Event[] = [
     time: "7:00 PM - 11:00 PM",
     location: "Civic District",
     category: "Festival",
-    featured: true
+    featured: true,
+    websiteUrl: "https://www.nightfestival.gov.sg/"
   },
   {
     id: "2",
@@ -37,7 +39,8 @@ const mockEvents: Event[] = [
     time: "7:45 PM & 8:45 PM",
     location: "Gardens by the Bay",
     category: "Entertainment",
-    featured: true
+    featured: true,
+    websiteUrl: "https://www.gardensbythebay.com.sg/"
   },
   {
     id: "3",
@@ -47,7 +50,8 @@ const mockEvents: Event[] = [
     time: "5:00 PM - 10:00 PM",
     location: "Chinatown",
     category: "Food",
-    featured: false
+    featured: false,
+    websiteUrl: "https://www.chinatown.sg/"
   },
   {
     id: "4",
@@ -57,7 +61,8 @@ const mockEvents: Event[] = [
     time: "10:00 AM - 6:00 PM",
     location: "Singapore Art Museum",
     category: "Culture",
-    featured: false
+    featured: false,
+    websiteUrl: "https://www.singaporeartmuseum.sg/"
   }
 ];
 
@@ -91,6 +96,10 @@ export function EventsCard() {
     }
   };
 
+  const handleEventClick = (websiteUrl: string) => {
+    window.open(websiteUrl, '_blank', 'noopener,noreferrer');
+  };
+
   if (loading) {
     return (
       <Card className="shadow-card">
@@ -120,10 +129,11 @@ export function EventsCard() {
         {events.map((event) => (
           <div
             key={event.id}
+            onClick={() => handleEventClick(event.websiteUrl)}
             className={`p-4 rounded-xl border transition-smooth hover:shadow-card cursor-pointer ${
               event.featured 
-                ? 'bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20' 
-                : 'bg-card border-border/50 hover:border-border'
+                ? 'bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20 hover:from-primary/10 hover:to-accent/10' 
+                : 'bg-card border-border/50 hover:border-border hover:bg-accent/5'
             }`}
           >
             <div className="flex items-start justify-between">
@@ -161,9 +171,17 @@ export function EventsCard() {
                 <Badge className={`text-xs px-2 py-1 ${getCategoryColor(event.category)}`}>
                   {event.category}
                 </Badge>
-                <Button size="sm" variant="outline" className="text-xs px-2 py-1 h-auto">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="text-xs px-2 py-1 h-auto"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEventClick(event.websiteUrl);
+                  }}
+                >
                   <ExternalLink className="h-3 w-3 mr-1" />
-                  View Details
+                  Visit Website
                 </Button>
               </div>
             </div>
