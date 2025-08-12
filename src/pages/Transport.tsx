@@ -28,13 +28,15 @@ interface ItineraryItem {
 }
 
 interface TransportOption {
-  type: 'mrt' | 'bus' | 'taxi' | 'grab' | 'walk' | 'public_transport';
+  type: 'mrt' | 'bus' | 'taxi' | 'grab' | 'tada' | 'gojek' | 'private_hire' | 'walk' | 'public_transport';
+  provider?: string;
   duration: string;
   cost: string;
   description: string;
   steps: string[];
   walkingTime?: string;
   realRouteData?: any; // OneMap route data
+  features?: string[]; // Additional features like "Air-conditioned", "Door-to-door", etc.
 }
 
 interface RouteSegment {
@@ -174,44 +176,96 @@ const Transport = () => {
         ]
       });
 
-      // Taxi/Grab options (with real driving route data)
-      if (distance > 1 || (driveRoute && driveRoute.route_summary)) {
-        let taxiTime, taxiCost, grabCost;
+      // Comfort transport options with accurate Singapore pricing
+      if (distance > 0.5 || (driveRoute && driveRoute.route_summary)) {
+        let taxiTime, comfortDelGroCost, grabCost, tadaCost, gojekCost, privateHireCost;
         
         if (driveRoute && driveRoute.route_summary) {
           taxiTime = oneMapService.formatTime(driveRoute.route_summary.total_time);
           const distanceKm = driveRoute.route_summary.total_distance / 1000;
           
-          const taxiEstimate = oneMapService.estimateTaxiCost(distanceKm);
+          const comfortDelGroEstimate = oneMapService.estimateComfortDelGroCost(distanceKm);
           const grabEstimate = oneMapService.estimateGrabCost(distanceKm);
+          const tadaEstimate = oneMapService.estimateTadaCost(distanceKm);
+          const gojekEstimate = oneMapService.estimateGojekCost(distanceKm);
+          const privateHireEstimate = oneMapService.estimatePrivateHireCost(distanceKm);
           
-          taxiCost = `S$${taxiEstimate.min} - S$${taxiEstimate.max}`;
+          comfortDelGroCost = `S$${comfortDelGroEstimate.min} - S$${comfortDelGroEstimate.max}`;
           grabCost = `S$${grabEstimate.min} - S$${grabEstimate.max}`;
+          tadaCost = `S$${tadaEstimate.min} - S$${tadaEstimate.max}`;
+          gojekCost = `S$${gojekEstimate.min} - S$${gojekEstimate.max}`;
+          privateHireCost = `S$${privateHireEstimate.min} - S$${privateHireEstimate.max}`;
         } else {
-          // Fallback calculations
-          taxiTime = `${Math.ceil(distance * 5 + 5)} min`;
-          const estimatedCost = Math.ceil(distance * 2 + 6);
-          taxiCost = `S$${estimatedCost} - S$${estimatedCost + 5}`;
-          grabCost = `S$${estimatedCost - 2} - S$${estimatedCost + 3}`;
+          // Fallback calculations for short distances
+          taxiTime = `${Math.ceil(distance * 4 + 3)} min`;
+          comfortDelGroCost = distance < 2 ? "S$3.90 - S$6.00" : `S$${(3.90 + distance * 0.6).toFixed(2)} - S$${(3.90 + distance * 0.9).toFixed(2)}`;
+          grabCost = distance < 2 ? "S$3.50 - S$8.00" : `S$${(3.50 + distance * 0.65).toFixed(2)} - S$${(3.50 + distance * 1.4).toFixed(2)}`;
+          tadaCost = distance < 2 ? "S$3.00 - S$6.50" : `S$${(3.00 + distance * 0.6).toFixed(2)} - S$${(3.00 + distance * 0.8).toFixed(2)}`;
+          gojekCost = distance < 2 ? "S$3.20 - S$7.50" : `S$${(3.20 + distance * 0.62).toFixed(2)} - S$${(3.20 + distance * 1.1).toFixed(2)}`;
+          privateHireCost = `S$${(8.00 + distance * 1.2).toFixed(2)} - S$${(8.00 + distance * 1.8).toFixed(2)}`;
         }
         
+        // ComfortDelGro Taxi
         options.push({
           type: 'taxi',
+          provider: 'ComfortDelGro',
           duration: taxiTime,
-          cost: taxiCost,
-          description: 'Take taxi or ComfortDelGro cab',
-          steps: [`Take taxi directly to ${to}`],
+          cost: comfortDelGroCost,
+          description: 'ComfortDelGro Taxi',
+          steps: [`Book via ComfortDelGro app or hail on street`, `Direct ride to ${to}`],
+          features: ['Street hail available', 'Licensed taxi', 'Meter fare', 'No surge pricing'],
           realRouteData: driveRoute
         });
 
+        // Grab
         options.push({
           type: 'grab',
+          provider: 'Grab',
           duration: taxiTime,
           cost: grabCost,
-          description: 'Book Grab ride',
-          steps: [`Book Grab ride to ${to}`],
+          description: 'Grab Ride',
+          steps: [`Book Grab via app`, `Driver picks up and drives to ${to}`],
+          features: ['Cashless payment', 'Real-time tracking', 'Dynamic pricing', 'Multiple car types'],
           realRouteData: driveRoute
         });
+
+        // Tada
+        options.push({
+          type: 'tada',
+          provider: 'Tada',
+          duration: taxiTime,
+          cost: tadaCost,
+          description: 'Tada Ride',
+          steps: [`Book Tada via app`, `Driver picks up and drives to ${to}`],
+          features: ['Competitive rates', 'Frequent promotions', 'Cashless payment', 'Good service'],
+          realRouteData: driveRoute
+        });
+
+        // Gojek
+        options.push({
+          type: 'gojek',
+          provider: 'Gojek',
+          duration: taxiTime,
+          cost: gojekCost,
+          description: 'Gojek Ride',
+          steps: [`Book Gojek via app`, `Driver picks up and drives to ${to}`],
+          features: ['Multi-service app', 'Competitive pricing', 'Reliable service', 'Cashless payment'],
+          realRouteData: driveRoute
+        });
+
+        // Private Hire Car (for longer distances or premium service)
+        if (distance > 5) {
+          options.push({
+            type: 'private_hire',
+            provider: 'Premium',
+            duration: taxiTime,
+            cost: privateHireCost,
+            description: 'Private Hire Car',
+            steps: [`Book premium car service`, `Professional driver picks up`, `Comfortable ride to ${to}`],
+            features: ['Professional driver', 'Premium vehicles', 'Door-to-door service', 'Fixed pricing'],
+            realRouteData: driveRoute
+          });
+        }
       }
 
     } catch (error) {
@@ -265,24 +319,37 @@ const Transport = () => {
       ]
     });
 
-    if (distance > 1) {
-      const taxiTime = Math.ceil(distance * 5 + 5);
-      const estimatedCost = Math.ceil(distance * 2 + 6);
+    if (distance > 0.5) {
+      const taxiTime = Math.ceil(distance * 4 + 3);
       
       options.push({
         type: 'taxi',
+        provider: 'ComfortDelGro',
         duration: `${taxiTime} min`,
-        cost: `S$${estimatedCost} - S$${estimatedCost + 5}`,
-        description: 'Take taxi or ComfortDelGro cab',
-        steps: [`Take taxi directly to ${to}`]
+        cost: distance < 2 ? "S$3.90 - S$6.00" : `S$${(3.90 + distance * 0.6).toFixed(2)} - S$${(3.90 + distance * 0.9).toFixed(2)}`,
+        description: 'ComfortDelGro Taxi',
+        steps: [`Book taxi or hail on street`, `Direct ride to ${to}`],
+        features: ['Licensed taxi', 'Meter fare']
       });
 
       options.push({
         type: 'grab',
+        provider: 'Grab',
         duration: `${taxiTime} min`,
-        cost: `S$${estimatedCost - 2} - S$${estimatedCost + 3}`,
-        description: 'Book Grab ride',
-        steps: [`Book Grab ride to ${to}`]
+        cost: distance < 2 ? "S$3.50 - S$8.00" : `S$${(3.50 + distance * 0.65).toFixed(2)} - S$${(3.50 + distance * 1.4).toFixed(2)}`,
+        description: 'Grab Ride',
+        steps: [`Book Grab via app`, `Driver picks up and drives to ${to}`],
+        features: ['Cashless payment', 'Real-time tracking']
+      });
+
+      options.push({
+        type: 'tada',
+        provider: 'Tada', 
+        duration: `${taxiTime} min`,
+        cost: distance < 2 ? "S$3.00 - S$6.50" : `S$${(3.00 + distance * 0.6).toFixed(2)} - S$${(3.00 + distance * 0.8).toFixed(2)}`,
+        description: 'Tada Ride',
+        steps: [`Book Tada via app`, `Driver picks up and drives to ${to}`],
+        features: ['Competitive rates', 'Frequent promotions']
       });
     }
 
@@ -332,8 +399,9 @@ const Transport = () => {
       })),
       comfort: segments.map(segment => ({
         ...segment,
-        recommended: segment.distance > 1.5 
-          ? segment.transportOptions.find(opt => opt.type === 'grab' || opt.type === 'taxi') || 
+        recommended: segment.distance > 1.0 
+          ? segment.transportOptions.find(opt => opt.type === 'grab' || opt.type === 'tada') || 
+            segment.transportOptions.find(opt => opt.type === 'taxi') ||
             segment.transportOptions.find(opt => opt.type === 'public_transport') || 
             segment.transportOptions[0]
           : segment.transportOptions.find(opt => opt.type === 'public_transport' || opt.type === 'mrt') || segment.transportOptions[0]
@@ -355,7 +423,10 @@ const Transport = () => {
       case 'bus': return <Bus className="h-4 w-4" />;
       case 'public_transport': return <Train className="h-4 w-4" />;
       case 'taxi':
-      case 'grab': return <Car className="h-4 w-4" />;
+      case 'grab':
+      case 'tada':
+      case 'gojek':
+      case 'private_hire': return <Car className="h-4 w-4" />;
       case 'walk': return <Footprints className="h-4 w-4" />;
       default: return <Navigation className="h-4 w-4" />;
     }
@@ -367,7 +438,10 @@ const Transport = () => {
       case 'bus': return 'bg-green-500';
       case 'public_transport': return 'bg-indigo-500';
       case 'taxi': return 'bg-yellow-500';
-      case 'grab': return 'bg-purple-500';
+      case 'grab': return 'bg-green-600';
+      case 'tada': return 'bg-purple-500';
+      case 'gojek': return 'bg-orange-500';
+      case 'private_hire': return 'bg-gray-700';
       case 'walk': return 'bg-gray-500';
       default: return 'bg-gray-500';
     }
@@ -573,13 +647,34 @@ const Transport = () => {
                       </div>
                     </div>
                     
-                    <div className="ml-12 space-y-1">
-                      {segment.recommended.steps.map((step, stepIndex) => (
-                        <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
-                          <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
-                          <span>{step}</span>
+                    <div className="ml-12 space-y-3">
+                      {/* Transport steps */}
+                      <div className="space-y-1">
+                        {segment.recommended.steps.map((step, stepIndex) => (
+                          <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
+                            <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
+                            <span>{step}</span>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Transport features */}
+                      {segment.recommended.features && segment.recommended.features.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {segment.recommended.features.map((feature, featureIndex) => (
+                            <Badge key={featureIndex} variant="outline" className="text-xs">
+                              {feature}
+                            </Badge>
+                          ))}
                         </div>
-                      ))}
+                      )}
+                      
+                      {/* Provider information */}
+                      {segment.recommended.provider && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Provider: {segment.recommended.provider}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

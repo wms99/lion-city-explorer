@@ -138,31 +138,84 @@ class OneMapService {
   }
 
   /**
-   * Estimate taxi/Grab cost based on distance
+   * Estimate ComfortDelGro taxi cost (most accurate Singapore taxi rates)
    */
-  estimateTaxiCost(distanceKm: number): { min: number; max: number } {
-    // Singapore taxi pricing (approximate)
-    const flagDown = 4.20; // Base fare
-    const perKm = 0.56; // Per 400m or part thereof
-    const bookingFee = 0; // No booking fee for street hail
+  estimateComfortDelGroCost(distanceKm: number): { min: number; max: number } {
+    // Updated 2024 ComfortDelGro taxi rates
+    const flagDown = 3.90; // Base fare for first 1km
+    const subsequentKm = 0.25; // Per 400m after first km
+    const bookingFee = 0; // No booking fee for street hail, S$3.50 for advance booking
     
-    const baseCost = flagDown + (distanceKm * perKm * 2.5); // 2.5 for 400m segments per km
+    let cost = flagDown;
+    if (distanceKm > 1) {
+      const remainingKm = distanceKm - 1;
+      cost += (remainingKm * 2.5) * subsequentKm; // 2.5 segments per km
+    }
     
     return {
-      min: Math.round(baseCost),
-      max: Math.round(baseCost * 1.3) // Peak hour surcharge
+      min: Math.round(cost * 100) / 100,
+      max: Math.round((cost * 1.5) * 100) / 100 // Peak hour surcharge (25-50%)
     };
   }
 
   /**
-   * Estimate Grab cost (usually slightly different from taxi)
+   * Estimate Grab cost (dynamic pricing)
    */
   estimateGrabCost(distanceKm: number): { min: number; max: number } {
-    const taxiCost = this.estimateTaxiCost(distanceKm);
+    // Grab typically 10-20% cheaper than taxi during normal times
+    const baseCost = 3.50 + (distanceKm * 0.65); // Base fare + distance
+    const bookingFee = 0.30; // Small booking fee
+    
+    const totalCost = baseCost + bookingFee;
+    
     return {
-      min: Math.round(taxiCost.min * 0.9), // Usually slightly cheaper
-      max: Math.round(taxiCost.max * 1.1)  // But can surge higher
+      min: Math.round((totalCost * 0.85) * 100) / 100, // Off-peak
+      max: Math.round((totalCost * 2.2) * 100) / 100  // Surge pricing can go high
     };
+  }
+
+  /**
+   * Estimate Tada cost (competitive rates)
+   */
+  estimateTadaCost(distanceKm: number): { min: number; max: number } {
+    // Tada often has promotional rates
+    const baseCost = 3.00 + (distanceKm * 0.60);
+    
+    return {
+      min: Math.round((baseCost * 0.8) * 100) / 100, // Promo rates
+      max: Math.round((baseCost * 1.3) * 100) / 100  // Regular rates
+    };
+  }
+
+  /**
+   * Estimate Gojek cost
+   */
+  estimateGojekCost(distanceKm: number): { min: number; max: number } {
+    const baseCost = 3.20 + (distanceKm * 0.62);
+    
+    return {
+      min: Math.round((baseCost * 0.9) * 100) / 100,
+      max: Math.round((baseCost * 1.8) * 100) / 100
+    };
+  }
+
+  /**
+   * Estimate private hire car cost (premium services)
+   */
+  estimatePrivateHireCost(distanceKm: number): { min: number; max: number } {
+    const baseCost = 8.00 + (distanceKm * 1.20); // Premium rates
+    
+    return {
+      min: Math.round(baseCost * 100) / 100,
+      max: Math.round((baseCost * 1.5) * 100) / 100
+    };
+  }
+
+  /**
+   * Legacy taxi cost function (keeping for backward compatibility)
+   */
+  estimateTaxiCost(distanceKm: number): { min: number; max: number } {
+    return this.estimateComfortDelGroCost(distanceKm);
   }
 }
 
