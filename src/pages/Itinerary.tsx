@@ -14,6 +14,7 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragOverEvent,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -210,26 +211,119 @@ const Itinerary = () => {
     });
   };
 
-  const reorderItinerary = (oldIndex: number, newIndex: number) => {
-    const updatedItems = arrayMove(savedItems, oldIndex, newIndex);
-    setSavedItems(updatedItems);
-    localStorage.setItem('singapore-itinerary', JSON.stringify(updatedItems));
-    const schedules = generateDaySchedules(updatedItems);
-    setDaySchedules(schedules);
-    generateScheduleSuggestions(updatedItems, schedules);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleScheduleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (over && active.id !== over.id) {
-      const oldIndex = savedItems.findIndex(item => item.id === active.id);
-      const newIndex = savedItems.findIndex(item => item.id === over.id);
-      
-      if (oldIndex !== -1 && newIndex !== -1) {
-        reorderItinerary(oldIndex, newIndex);
+    if (!over || active.id === over.id) return;
+
+    // Parse the active and over IDs to get item and container info
+    const activeData = active.data.current;
+    const overData = over.data.current;
+
+    if (!activeData || !overData) return;
+
+    // Extract the item IDs from the draggable data
+    const activeItemId = activeData.sortable ? active.id as string : activeData.itemId;
+    const overItemId = overData.sortable ? over.id as string : overData.itemId;
+    const overDay = overData.day;
+    const overTimeSlot = overData.timeSlot;
+
+    // Find the schedules containing these items
+    let sourceSchedule: DaySchedule | null = null;
+    let sourceIndex = -1;
+    let targetSchedule: DaySchedule | null = null;
+    let targetIndex = -1;
+
+    // Find source item
+    for (const schedule of daySchedules) {
+      const itemIndex = schedule.items.findIndex(item => item.id === activeItemId);
+      if (itemIndex !== -1) {
+        sourceSchedule = schedule;
+        sourceIndex = itemIndex;
+        break;
       }
     }
+
+    // Find target position
+    if (overData.sortable) {
+      // Dropped on another item
+      for (const schedule of daySchedules) {
+        const itemIndex = schedule.items.findIndex(item => item.id === overItemId);
+        if (itemIndex !== -1) {
+          targetSchedule = schedule;
+          targetIndex = itemIndex;
+          break;
+        }
+      }
+    } else {
+      // Dropped on a time slot container
+      targetSchedule = daySchedules.find(s => s.day === overDay) || null;
+      if (targetSchedule) {
+        // Find the last item in this time slot or end of day
+        const timeSlotItems = targetSchedule.items.filter(item => {
+          const itemHour = parseInt(item.timeSlot.split(':')[0]);
+          if (overTimeSlot === 'morning') return itemHour < 12;
+          if (overTimeSlot === 'afternoon') return itemHour >= 12 && itemHour < 18;
+          if (overTimeSlot === 'evening') return itemHour >= 18 && itemHour < 21;
+          return itemHour >= 21;
+        });
+        targetIndex = timeSlotItems.length;
+      }
+    }
+
+    if (!sourceSchedule || !targetSchedule || sourceIndex === -1) return;
+
+    const sourceItem = sourceSchedule.items[sourceIndex];
+
+    // Create updated schedules
+    const updatedSchedules = daySchedules.map(schedule => {
+      if (schedule.day === sourceSchedule!.day) {
+        // Remove from source
+        return {
+          ...schedule,
+          items: schedule.items.filter((_, index) => index !== sourceIndex)
+        };
+      }
+      if (schedule.day === targetSchedule!.day) {
+        // Add to target
+        const newItems = [...schedule.items];
+        if (targetIndex >= newItems.length) {
+          newItems.push(sourceItem);
+        } else {
+          newItems.splice(targetIndex, 0, sourceItem);
+        }
+        return {
+          ...schedule,
+          items: newItems
+        };
+      }
+      return schedule;
+    });
+
+    // Update the main items array to reflect new order
+    const newItems: ItineraryItem[] = [];
+    updatedSchedules.forEach(schedule => {
+      schedule.items.forEach(item => {
+        newItems.push({
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          addedAt: item.addedAt,
+          suggestedDuration: item.suggestedDuration,
+          optimalTimeSlot: item.optimalTimeSlot,
+          visitType: item.visitType,
+          day: schedule.day
+        });
+      });
+    });
+
+    setSavedItems(newItems);
+    localStorage.setItem('singapore-itinerary', JSON.stringify(newItems));
+    
+    // Regenerate schedules with proper timing
+    const freshSchedules = generateDaySchedules(newItems);
+    setDaySchedules(freshSchedules);
+    generateScheduleSuggestions(newItems, freshSchedules);
   };
 
   const sensors = useSensors(
@@ -442,11 +536,10 @@ const Itinerary = () => {
     };
   };
 
-  // Sortable Attraction Item Component
-  const SortableAttractionItem = ({ item, attraction, onRemove }: {
-    item: ItineraryItem;
-    attraction: Attraction | null;
-    onRemove: (id: string) => void;
+  // Sortable Schedule Item Component
+  const SortableScheduleItem = ({ item, index }: {
+    item: DaySchedule['items'][0];
+    index: number;
   }) => {
     const {
       attributes,
@@ -455,7 +548,13 @@ const Itinerary = () => {
       transform,
       transition,
       isDragging,
-    } = useSortable({ id: item.id });
+    } = useSortable({ 
+      id: item.id,
+      data: {
+        sortable: true,
+        itemId: item.id,
+      }
+    });
 
     const style = {
       transform: CSS.Transform.toString(transform),
@@ -463,62 +562,39 @@ const Itinerary = () => {
       opacity: isDragging ? 0.5 : 1,
     };
 
-    if (!attraction) return null;
-
     return (
       <div
         ref={setNodeRef}
         style={style}
-        className="flex items-start space-x-3 p-3 border border-border rounded-lg hover:shadow-sm transition-smooth"
+        className="bg-background border border-border rounded-lg p-3 cursor-grab active:cursor-grabbing hover:shadow-sm transition-smooth"
+        {...attributes}
+        {...listeners}
       >
-        {/* Drag Handle */}
-        <div
-          {...attributes}
-          {...listeners}
-          className="flex items-center justify-center w-6 h-6 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing mt-1"
-          title="Drag to reorder"
-        >
-          <GripVertical className="h-4 w-4" />
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between mb-2">
-            <h4 className="font-semibold text-base truncate pr-2">{attraction.name}</h4>
-            <Button
-              onClick={() => onRemove(item.id)}
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0 flex-shrink-0"
-              title="Remove from itinerary"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+        <div className="flex items-center space-x-2 mb-1">
+          <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
+            {index + 1}
           </div>
-          
-          <div className="flex items-center space-x-2 mb-2">
-            <Badge className={getCategoryColor(attraction.category)}>
-              {attraction.category}
+          <span className="font-medium text-sm">{item.timeSlot}</span>
+          <GripVertical className="h-4 w-4 text-muted-foreground ml-auto" />
+          {item.openingConflict && (
+            <Badge variant="destructive" className="text-xs">
+              Check Hours
             </Badge>
-            <div className="flex items-center space-x-1">
-              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-              <span className="text-xs font-medium">{attraction.rating}</span>
-            </div>
-          </div>
-          
-          <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
-            {attraction.description}
+          )}
+        </div>
+        <div className="ml-8">
+          <h5 className="font-medium">{item.attraction?.name}</h5>
+          <p className="text-xs text-muted-foreground">
+            Duration: {item.duration}
+            {item.openingConflict && (
+              <span className="text-destructive ml-2">
+                • Opens: {item.attraction?.openingHours}
+              </span>
+            )}
           </p>
-          
-          <div className="space-y-1 text-xs">
-            <div className="flex items-center space-x-1">
-              <Clock className="h-3 w-3 text-muted-foreground" />
-              <span className="truncate">{attraction.openingHours}</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <DollarSign className="h-3 w-3 text-muted-foreground" />
-              <span className="truncate">{attraction.ticketPrice}</span>
-            </div>
-          </div>
+          {item.travelTime && (
+            <p className="text-xs text-muted-foreground italic">+ {item.travelTime}</p>
+          )}
         </div>
       </div>
     );
@@ -626,7 +702,7 @@ const Itinerary = () => {
                 </Card>
               )}
 
-              {/* Day Schedule */}
+              {/* Day Schedule with Drag and Drop */}
               {daySchedules.length > 0 && (
                 <Card className="shadow-card">
                   <CardHeader>
@@ -644,37 +720,100 @@ const Itinerary = () => {
                     )}
                   </CardHeader>
                   <CardContent>
-                    {daySchedules.find(d => d.day === selectedDay)?.items.map((item, index) => (
-                      <div key={item.id} className="mb-4 last:mb-0">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
-                            {index + 1}
-                          </div>
-                          <span className="font-medium text-sm">{item.timeSlot}</span>
-                          {item.openingConflict && (
-                            <Badge variant="destructive" className="text-xs">
-                              Check Hours
-                            </Badge>
-                          )}
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleScheduleDragEnd}
+                    >
+                      <div className="space-y-6">
+                        {/* Morning Section */}
+                        <div className="space-y-2">
+                          <h4 className="font-medium text-sm text-muted-foreground flex items-center">
+                            <div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>
+                            Morning (9:00 - 12:00)
+                          </h4>
+                          <SortableContext 
+                            items={daySchedules.find(d => d.day === selectedDay)?.items
+                              .filter(item => parseInt(item.timeSlot.split(':')[0]) < 12)
+                              .map(item => item.id) || []} 
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <div 
+                              className="min-h-[60px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2"
+                              data-droppable="true"
+                              data-day={selectedDay}
+                              data-time-slot="morning"
+                            >
+                              {daySchedules.find(d => d.day === selectedDay)?.items
+                                .filter(item => parseInt(item.timeSlot.split(':')[0]) < 12)
+                                .map((item, index) => (
+                                  <SortableScheduleItem key={item.id} item={item} index={index} />
+                                )) || <p className="text-muted-foreground text-xs">Drop attractions here for morning</p>}
+                            </div>
+                          </SortableContext>
                         </div>
-                        <div className="ml-8">
-                          <h5 className="font-medium">{item.attraction?.name}</h5>
-                          <p className="text-xs text-muted-foreground">
-                            Duration: {item.duration}
-                            {item.openingConflict && (
-                              <span className="text-destructive ml-2">
-                                • Opens: {item.attraction?.openingHours}
-                              </span>
-                            )}
-                          </p>
-                          {item.travelTime && (
-                            <p className="text-xs text-muted-foreground italic">+ {item.travelTime}</p>
-                          )}
+
+                        {/* Afternoon Section */}
+                        <div className="space-y-2">
+                          <h4 className="font-medium text-sm text-muted-foreground flex items-center">
+                            <div className="w-2 h-2 bg-orange-400 rounded-full mr-2"></div>
+                            Afternoon (12:00 - 18:00)
+                          </h4>
+                          <SortableContext 
+                            items={daySchedules.find(d => d.day === selectedDay)?.items
+                              .filter(item => {
+                                const hour = parseInt(item.timeSlot.split(':')[0]);
+                                return hour >= 12 && hour < 18;
+                              })
+                              .map(item => item.id) || []} 
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <div 
+                              className="min-h-[60px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2"
+                              data-droppable="true"
+                              data-day={selectedDay}
+                              data-time-slot="afternoon"
+                            >
+                              {daySchedules.find(d => d.day === selectedDay)?.items
+                                .filter(item => {
+                                  const hour = parseInt(item.timeSlot.split(':')[0]);
+                                  return hour >= 12 && hour < 18;
+                                })
+                                .map((item, index) => (
+                                  <SortableScheduleItem key={item.id} item={item} index={index} />
+                                )) || <p className="text-muted-foreground text-xs">Drop attractions here for afternoon</p>}
+                            </div>
+                          </SortableContext>
+                        </div>
+
+                        {/* Evening Section */}
+                        <div className="space-y-2">
+                          <h4 className="font-medium text-sm text-muted-foreground flex items-center">
+                            <div className="w-2 h-2 bg-purple-400 rounded-full mr-2"></div>
+                            Evening (18:00+)
+                          </h4>
+                          <SortableContext 
+                            items={daySchedules.find(d => d.day === selectedDay)?.items
+                              .filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18)
+                              .map(item => item.id) || []} 
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <div 
+                              className="min-h-[60px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2"
+                              data-droppable="true"
+                              data-day={selectedDay}
+                              data-time-slot="evening"
+                            >
+                              {daySchedules.find(d => d.day === selectedDay)?.items
+                                .filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18)
+                                .map((item, index) => (
+                                  <SortableScheduleItem key={item.id} item={item} index={index} />
+                                )) || <p className="text-muted-foreground text-xs">Drop attractions here for evening</p>}
+                            </div>
+                          </SortableContext>
                         </div>
                       </div>
-                    )) || (
-                      <p className="text-muted-foreground text-sm">No schedule available for this day.</p>
-                    )}
+                    </DndContext>
                   </CardContent>
                 </Card>
               )}
@@ -691,22 +830,53 @@ const Itinerary = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext items={savedItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
-                      {savedItems.map((item) => (
-                        <SortableAttractionItem
-                          key={item.id}
-                          item={item}
-                          attraction={getAttractionDetails(item.id)}
-                          onRemove={removeFromItinerary}
-                        />
-                      ))}
-                    </SortableContext>
-                  </DndContext>
+                  {/* Remove drag and drop from attractions list */}
+                  {savedItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-start space-x-3 p-3 border border-border rounded-lg hover:shadow-sm transition-smooth"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-semibold text-base truncate pr-2">{getAttractionDetails(item.id)?.name}</h4>
+                          <Button
+                            onClick={() => removeFromItinerary(item.id)}
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0 flex-shrink-0"
+                            title="Remove from itinerary"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Badge className={getCategoryColor(getAttractionDetails(item.id)?.category || 'tourist')}>
+                            {getAttractionDetails(item.id)?.category}
+                          </Badge>
+                          <div className="flex items-center space-x-1">
+                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                            <span className="text-xs font-medium">{getAttractionDetails(item.id)?.rating}</span>
+                          </div>
+                        </div>
+                        
+                        <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                          {getAttractionDetails(item.id)?.description}
+                        </p>
+                        
+                        <div className="space-y-1 text-xs">
+                          <div className="flex items-center space-x-1">
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            <span className="truncate">{getAttractionDetails(item.id)?.openingHours}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <DollarSign className="h-3 w-3 text-muted-foreground" />
+                            <span className="truncate">{getAttractionDetails(item.id)?.ticketPrice}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
 
