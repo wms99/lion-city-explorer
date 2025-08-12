@@ -48,37 +48,21 @@ const Index = () => {
               Discover the Lion City with your personal travel companion
             </p>
             <div className="space-y-6 animate-fade-in">
-              <div className="relative group">
-                {/* Animated background glow */}
-                <div className="absolute -inset-1 bg-gradient-to-r from-primary via-secondary to-accent rounded-3xl blur-lg opacity-75 group-hover:opacity-100 animate-pulse transition-all duration-1000"></div>
-                
-                <Button 
-                  onClick={() => navigate('/profile-preferences')}
-                  size="lg"
-                  className="relative bg-gradient-to-r from-primary via-primary/90 to-secondary text-white border-0 rounded-3xl px-12 py-6 text-xl font-bold shadow-2xl hover:shadow-glow transition-all duration-300 transform hover:scale-110 hover:-translate-y-1 min-w-[280px] group-hover:from-secondary group-hover:to-primary"
-                >
-                  <span className="flex items-center gap-3">
-                    <span className="animate-pulse">🚀</span>
-                    Get Started
-                    <span className="animate-bounce">✨</span>
-                  </span>
-                </Button>
-              </div>
+              <Button 
+                onClick={() => navigate('/profile-preferences')}
+                size="lg"
+                className="bg-gradient-hero hover:opacity-90 text-white border-0 rounded-2xl px-10 py-5 text-xl font-semibold shadow-elegant hover:shadow-glow transition-smooth transform hover:scale-[1.02] hover:-translate-y-0.5 min-w-[260px] backdrop-blur-sm"
+              >
+                Get Started
+              </Button>
               
               <div className="space-y-2">
-                <p className="text-white/90 text-lg font-medium animate-fade-in">
+                <p className="text-white/90 text-lg font-medium">
                   Plan your perfect Singapore trip
                 </p>
-                <p className="text-white/70 text-sm animate-fade-in">
+                <p className="text-white/70 text-sm">
                   Personalized recommendations • Smart itineraries • Local insights
                 </p>
-              </div>
-              
-              {/* Call-to-action indicators */}
-              <div className="flex justify-center space-x-2 animate-fade-in">
-                <div className="w-2 h-2 bg-white/60 rounded-full animate-pulse"></div>
-                <div className="w-2 h-2 bg-white/60 rounded-full animate-pulse delay-100"></div>
-                <div className="w-2 h-2 bg-white/60 rounded-full animate-pulse delay-200"></div>
               </div>
             </div>
           </div>
