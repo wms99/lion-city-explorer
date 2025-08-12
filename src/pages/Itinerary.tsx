@@ -211,87 +211,98 @@ const Itinerary = () => {
     });
   };
 
+  // Helper function to determine time slot based on hour
+  const getTimeSlotForHour = (hour: number): string => {
+    if (hour < 12) return 'morning';
+    if (hour < 18) return 'afternoon';
+    return 'evening';
+  };
+
   const handleScheduleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (!over || active.id === over.id) return;
 
-    // Parse the active and over IDs to get item and container info
-    const activeData = active.data.current;
-    const overData = over.data.current;
+    // Try to get drop target info from over.data or HTML element
+    let dropTarget = over.data?.current;
+    
+    // If we're dropping on a sortable item, find its container
+    if (!dropTarget?.day && over.id) {
+      // Look through all day schedules to find which one contains this item
+      for (const schedule of daySchedules) {
+        for (const item of schedule.items) {
+          if (item.id === over.id) {
+            dropTarget = {
+              day: schedule.day,
+              timeSlot: getTimeSlotForHour(parseInt(item.timeSlot.split(':')[0]))
+            };
+            break;
+          }
+        }
+        if (dropTarget?.day) break;
+      }
+    }
 
-    if (!activeData || !overData) return;
+    const activeItemId = active.id as string;
+    const targetDay = dropTarget?.day;
+    const targetTimeSlot = dropTarget?.timeSlot;
 
-    // Extract the item IDs from the draggable data
-    const activeItemId = activeData.sortable ? active.id as string : activeData.itemId;
-    const overItemId = overData.sortable ? over.id as string : overData.itemId;
-    const overDay = overData.day;
-    const overTimeSlot = overData.timeSlot;
+    if (!targetDay) return;
 
-    // Find the schedules containing these items
+    // Find the source item
     let sourceSchedule: DaySchedule | null = null;
     let sourceIndex = -1;
-    let targetSchedule: DaySchedule | null = null;
-    let targetIndex = -1;
+    let sourceItem: DaySchedule['items'][0] | null = null;
 
-    // Find source item
     for (const schedule of daySchedules) {
       const itemIndex = schedule.items.findIndex(item => item.id === activeItemId);
       if (itemIndex !== -1) {
         sourceSchedule = schedule;
         sourceIndex = itemIndex;
+        sourceItem = schedule.items[itemIndex];
         break;
       }
     }
 
-    // Find target position
-    if (overData.sortable) {
-      // Dropped on another item
-      for (const schedule of daySchedules) {
-        const itemIndex = schedule.items.findIndex(item => item.id === overItemId);
-        if (itemIndex !== -1) {
-          targetSchedule = schedule;
-          targetIndex = itemIndex;
-          break;
-        }
-      }
-    } else {
-      // Dropped on a time slot container
-      targetSchedule = daySchedules.find(s => s.day === overDay) || null;
-      if (targetSchedule) {
-        // Find the last item in this time slot or end of day
-        const timeSlotItems = targetSchedule.items.filter(item => {
-          const itemHour = parseInt(item.timeSlot.split(':')[0]);
-          if (overTimeSlot === 'morning') return itemHour < 12;
-          if (overTimeSlot === 'afternoon') return itemHour >= 12 && itemHour < 18;
-          if (overTimeSlot === 'evening') return itemHour >= 18 && itemHour < 21;
-          return itemHour >= 21;
-        });
-        targetIndex = timeSlotItems.length;
-      }
-    }
-
-    if (!sourceSchedule || !targetSchedule || sourceIndex === -1) return;
-
-    const sourceItem = sourceSchedule.items[sourceIndex];
+    if (!sourceSchedule || !sourceItem || sourceIndex === -1) return;
 
     // Create updated schedules
     const updatedSchedules = daySchedules.map(schedule => {
       if (schedule.day === sourceSchedule!.day) {
-        // Remove from source
+        // Remove from source day
         return {
           ...schedule,
           items: schedule.items.filter((_, index) => index !== sourceIndex)
         };
       }
-      if (schedule.day === targetSchedule!.day) {
-        // Add to target
+      if (schedule.day === targetDay) {
+        // Add to target day
         const newItems = [...schedule.items];
-        if (targetIndex >= newItems.length) {
-          newItems.push(sourceItem);
+        
+        // If we have a specific time slot, try to place it appropriately
+        if (targetTimeSlot) {
+          let insertIndex = newItems.length;
+          
+          // Find the appropriate position based on time slot
+          for (let i = 0; i < newItems.length; i++) {
+            const itemHour = parseInt(newItems[i].timeSlot.split(':')[0]);
+            let timeSlotStart = 0;
+            
+            if (targetTimeSlot === 'morning') timeSlotStart = 9;
+            else if (targetTimeSlot === 'afternoon') timeSlotStart = 12;
+            else if (targetTimeSlot === 'evening') timeSlotStart = 18;
+            
+            if (itemHour >= timeSlotStart) {
+              insertIndex = i;
+              break;
+            }
+          }
+          
+          newItems.splice(insertIndex, 0, sourceItem);
         } else {
-          newItems.splice(targetIndex, 0, sourceItem);
+          newItems.push(sourceItem);
         }
+        
         return {
           ...schedule,
           items: newItems
@@ -324,6 +335,12 @@ const Itinerary = () => {
     const freshSchedules = generateDaySchedules(newItems);
     setDaySchedules(freshSchedules);
     generateScheduleSuggestions(newItems, freshSchedules);
+
+    toast({
+      title: "Schedule Updated",
+      description: `Moved ${sourceItem.attraction?.name} to Day ${targetDay}`,
+      variant: "default"
+    });
   };
 
   const sensors = useSensors(
@@ -708,16 +725,11 @@ const Itinerary = () => {
                   <CardHeader>
                     <CardTitle className="flex items-center">
                       <Route className="h-5 w-5 mr-2" />
-                      {daySchedules.length > 1 ? `Day ${selectedDay} Schedule` : 'Suggested Schedule'}
+                      Schedule Overview
                     </CardTitle>
-                    {daySchedules.length > 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        {daySchedules.find(d => d.day === selectedDay)?.date} • 
-                        {daySchedules.find(d => d.day === selectedDay)?.startTime} - 
-                        {daySchedules.find(d => d.day === selectedDay)?.endTime} • 
-                        {Math.ceil((daySchedules.find(d => d.day === selectedDay)?.totalDuration || 0) / 60)}h total
-                      </p>
-                    )}
+                    <p className="text-sm text-muted-foreground">
+                      Drag attractions between days and time periods
+                    </p>
                   </CardHeader>
                   <CardContent>
                     <DndContext
@@ -726,92 +738,150 @@ const Itinerary = () => {
                       onDragEnd={handleScheduleDragEnd}
                     >
                       <div className="space-y-6">
-                        {/* Morning Section */}
-                        <div className="space-y-2">
-                          <h4 className="font-medium text-sm text-muted-foreground flex items-center">
-                            <div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>
-                            Morning (9:00 - 12:00)
-                          </h4>
-                          <SortableContext 
-                            items={daySchedules.find(d => d.day === selectedDay)?.items
-                              .filter(item => parseInt(item.timeSlot.split(':')[0]) < 12)
-                              .map(item => item.id) || []} 
-                            strategy={verticalListSortingStrategy}
-                          >
-                            <div 
-                              className="min-h-[60px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2"
-                              data-droppable="true"
-                              data-day={selectedDay}
-                              data-time-slot="morning"
-                            >
-                              {daySchedules.find(d => d.day === selectedDay)?.items
-                                .filter(item => parseInt(item.timeSlot.split(':')[0]) < 12)
-                                .map((item, index) => (
-                                  <SortableScheduleItem key={item.id} item={item} index={index} />
-                                )) || <p className="text-muted-foreground text-xs">Drop attractions here for morning</p>}
+                        {daySchedules.map((daySchedule) => (
+                          <div key={daySchedule.day} className="border border-border rounded-lg p-4 bg-card">
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="font-semibold text-lg">Day {daySchedule.day}</h3>
+                              <div className="text-sm text-muted-foreground">
+                                {daySchedule.date} • {daySchedule.startTime} - {daySchedule.endTime} • 
+                                {Math.ceil(daySchedule.totalDuration / 60)}h total
+                              </div>
                             </div>
-                          </SortableContext>
-                        </div>
+                            
+                            <div className="space-y-4">
+                              {/* Morning Section */}
+                              <div className="space-y-2">
+                                <h4 className="font-medium text-sm text-muted-foreground flex items-center">
+                                  <div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>
+                                  Morning (9:00 - 12:00)
+                                </h4>
+                                <div>
+                                  <SortableContext 
+                                    items={daySchedule.items
+                                      .filter(item => parseInt(item.timeSlot.split(':')[0]) < 12)
+                                      .map(item => item.id)} 
+                                    strategy={verticalListSortingStrategy}
+                                  >
+                                    <div 
+                                      className="min-h-[80px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2 transition-colors hover:border-primary/50"
+                                      onDragOver={(e) => {
+                                        e.preventDefault();
+                                        e.currentTarget.classList.add('border-primary/50', 'bg-primary/5');
+                                      }}
+                                      onDragLeave={(e) => {
+                                        e.currentTarget.classList.remove('border-primary/50', 'bg-primary/5');
+                                      }}
+                                      onDrop={(e) => {
+                                        e.preventDefault();
+                                        e.currentTarget.classList.remove('border-primary/50', 'bg-primary/5');
+                                      }}
+                                    >
+                                      {daySchedule.items
+                                        .filter(item => parseInt(item.timeSlot.split(':')[0]) < 12)
+                                        .map((item, index) => (
+                                          <SortableScheduleItem key={item.id} item={item} index={index} />
+                                        ))}
+                                      {daySchedule.items.filter(item => parseInt(item.timeSlot.split(':')[0]) < 12).length === 0 && (
+                                        <p className="text-muted-foreground text-xs text-center py-4">
+                                          Drop attractions here for morning
+                                        </p>
+                                      )}
+                                    </div>
+                                  </SortableContext>
+                                </div>
+                              </div>
 
-                        {/* Afternoon Section */}
-                        <div className="space-y-2">
-                          <h4 className="font-medium text-sm text-muted-foreground flex items-center">
-                            <div className="w-2 h-2 bg-orange-400 rounded-full mr-2"></div>
-                            Afternoon (12:00 - 18:00)
-                          </h4>
-                          <SortableContext 
-                            items={daySchedules.find(d => d.day === selectedDay)?.items
-                              .filter(item => {
-                                const hour = parseInt(item.timeSlot.split(':')[0]);
-                                return hour >= 12 && hour < 18;
-                              })
-                              .map(item => item.id) || []} 
-                            strategy={verticalListSortingStrategy}
-                          >
-                            <div 
-                              className="min-h-[60px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2"
-                              data-droppable="true"
-                              data-day={selectedDay}
-                              data-time-slot="afternoon"
-                            >
-                              {daySchedules.find(d => d.day === selectedDay)?.items
-                                .filter(item => {
-                                  const hour = parseInt(item.timeSlot.split(':')[0]);
-                                  return hour >= 12 && hour < 18;
-                                })
-                                .map((item, index) => (
-                                  <SortableScheduleItem key={item.id} item={item} index={index} />
-                                )) || <p className="text-muted-foreground text-xs">Drop attractions here for afternoon</p>}
-                            </div>
-                          </SortableContext>
-                        </div>
+                              {/* Afternoon Section */}
+                              <div className="space-y-2">
+                                <h4 className="font-medium text-sm text-muted-foreground flex items-center">
+                                  <div className="w-2 h-2 bg-orange-400 rounded-full mr-2"></div>
+                                  Afternoon (12:00 - 18:00)
+                                </h4>
+                                <div 
+                                  className="min-h-[80px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2 transition-colors hover:border-primary/50"
+                                  data-droppable="true"
+                                  data-day={daySchedule.day}
+                                  data-time-slot="afternoon"
+                                  onDragOver={(e) => {
+                                    e.preventDefault();
+                                    e.currentTarget.classList.add('border-primary/50', 'bg-primary/5');
+                                  }}
+                                  onDragLeave={(e) => {
+                                    e.currentTarget.classList.remove('border-primary/50', 'bg-primary/5');
+                                  }}
+                                  onDrop={(e) => {
+                                    e.currentTarget.classList.remove('border-primary/50', 'bg-primary/5');
+                                  }}
+                                >
+                                  <SortableContext 
+                                    items={daySchedule.items
+                                      .filter(item => {
+                                        const hour = parseInt(item.timeSlot.split(':')[0]);
+                                        return hour >= 12 && hour < 18;
+                                      })
+                                      .map(item => item.id)} 
+                                    strategy={verticalListSortingStrategy}
+                                  >
+                                    {daySchedule.items
+                                      .filter(item => {
+                                        const hour = parseInt(item.timeSlot.split(':')[0]);
+                                        return hour >= 12 && hour < 18;
+                                      })
+                                      .map((item, index) => (
+                                        <SortableScheduleItem key={item.id} item={item} index={index} />
+                                      ))}
+                                    {daySchedule.items.filter(item => {
+                                      const hour = parseInt(item.timeSlot.split(':')[0]);
+                                      return hour >= 12 && hour < 18;
+                                    }).length === 0 && (
+                                      <p className="text-muted-foreground text-xs text-center py-4">Drop attractions here for afternoon</p>
+                                    )}
+                                  </SortableContext>
+                                </div>
+                              </div>
 
-                        {/* Evening Section */}
-                        <div className="space-y-2">
-                          <h4 className="font-medium text-sm text-muted-foreground flex items-center">
-                            <div className="w-2 h-2 bg-purple-400 rounded-full mr-2"></div>
-                            Evening (18:00+)
-                          </h4>
-                          <SortableContext 
-                            items={daySchedules.find(d => d.day === selectedDay)?.items
-                              .filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18)
-                              .map(item => item.id) || []} 
-                            strategy={verticalListSortingStrategy}
-                          >
-                            <div 
-                              className="min-h-[60px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2"
-                              data-droppable="true"
-                              data-day={selectedDay}
-                              data-time-slot="evening"
-                            >
-                              {daySchedules.find(d => d.day === selectedDay)?.items
-                                .filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18)
-                                .map((item, index) => (
-                                  <SortableScheduleItem key={item.id} item={item} index={index} />
-                                )) || <p className="text-muted-foreground text-xs">Drop attractions here for evening</p>}
+                              {/* Evening Section */}
+                              <div className="space-y-2">
+                                <h4 className="font-medium text-sm text-muted-foreground flex items-center">
+                                  <div className="w-2 h-2 bg-purple-400 rounded-full mr-2"></div>
+                                  Evening (18:00+)
+                                </h4>
+                                <div 
+                                  className="min-h-[80px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2 transition-colors hover:border-primary/50"
+                                  data-droppable="true"
+                                  data-day={daySchedule.day}
+                                  data-time-slot="evening"
+                                  onDragOver={(e) => {
+                                    e.preventDefault();
+                                    e.currentTarget.classList.add('border-primary/50', 'bg-primary/5');
+                                  }}
+                                  onDragLeave={(e) => {
+                                    e.currentTarget.classList.remove('border-primary/50', 'bg-primary/5');
+                                  }}
+                                  onDrop={(e) => {
+                                    e.currentTarget.classList.remove('border-primary/50', 'bg-primary/5');
+                                  }}
+                                >
+                                  <SortableContext 
+                                    items={daySchedule.items
+                                      .filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18)
+                                      .map(item => item.id)} 
+                                    strategy={verticalListSortingStrategy}
+                                  >
+                                    {daySchedule.items
+                                      .filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18)
+                                      .map((item, index) => (
+                                        <SortableScheduleItem key={item.id} item={item} index={index} />
+                                      ))}
+                                    {daySchedule.items.filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18).length === 0 && (
+                                      <p className="text-muted-foreground text-xs text-center py-4">Drop attractions here for evening</p>
+                                    )}
+                                  </SortableContext>
+                                </div>
+                              </div>
                             </div>
-                          </SortableContext>
-                        </div>
+                          </div>
+                        ))}
                       </div>
                     </DndContext>
                   </CardContent>
