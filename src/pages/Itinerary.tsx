@@ -223,39 +223,16 @@ const Itinerary = () => {
 
     if (!over || active.id === over.id) return;
 
-    // Try to get drop target info from over.data or HTML element
-    let dropTarget = over.data?.current;
-    
-    // If we're dropping on a sortable item, find its container
-    if (!dropTarget?.day && over.id) {
-      // Look through all day schedules to find which one contains this item
-      for (const schedule of daySchedules) {
-        for (const item of schedule.items) {
-          if (item.id === over.id) {
-            dropTarget = {
-              day: schedule.day,
-              timeSlot: getTimeSlotForHour(parseInt(item.timeSlot.split(':')[0]))
-            };
-            break;
-          }
-        }
-        if (dropTarget?.day) break;
-      }
-    }
-
-    const activeItemId = active.id as string;
-    const targetDay = dropTarget?.day;
-    const targetTimeSlot = dropTarget?.timeSlot;
-
-    if (!targetDay) return;
-
-    // Find the source item
+    // Find source and target items/containers
     let sourceSchedule: DaySchedule | null = null;
     let sourceIndex = -1;
+    let targetSchedule: DaySchedule | null = null;
+    let targetIndex = -1;
     let sourceItem: DaySchedule['items'][0] | null = null;
 
+    // Find source item
     for (const schedule of daySchedules) {
-      const itemIndex = schedule.items.findIndex(item => item.id === activeItemId);
+      const itemIndex = schedule.items.findIndex(item => item.id === active.id);
       if (itemIndex !== -1) {
         sourceSchedule = schedule;
         sourceIndex = itemIndex;
@@ -264,54 +241,36 @@ const Itinerary = () => {
       }
     }
 
+    // Find target position (either another item or same day)
+    for (const schedule of daySchedules) {
+      const itemIndex = schedule.items.findIndex(item => item.id === over.id);
+      if (itemIndex !== -1) {
+        targetSchedule = schedule;
+        targetIndex = itemIndex;
+        break;
+      }
+    }
+
     if (!sourceSchedule || !sourceItem || sourceIndex === -1) return;
 
-    // Create updated schedules
-    const updatedSchedules = daySchedules.map(schedule => {
-      if (schedule.day === sourceSchedule!.day) {
-        // Remove from source day
-        return {
-          ...schedule,
-          items: schedule.items.filter((_, index) => index !== sourceIndex)
-        };
-      }
-      if (schedule.day === targetDay) {
-        // Add to target day
-        const newItems = [...schedule.items];
-        
-        // If we have a specific time slot, try to place it appropriately
-        if (targetTimeSlot) {
-          let insertIndex = newItems.length;
-          
-          // Find the appropriate position based on time slot
-          for (let i = 0; i < newItems.length; i++) {
-            const itemHour = parseInt(newItems[i].timeSlot.split(':')[0]);
-            let timeSlotStart = 0;
-            
-            if (targetTimeSlot === 'morning') timeSlotStart = 9;
-            else if (targetTimeSlot === 'afternoon') timeSlotStart = 12;
-            else if (targetTimeSlot === 'evening') timeSlotStart = 18;
-            
-            if (itemHour >= timeSlotStart) {
-              insertIndex = i;
-              break;
-            }
-          }
-          
-          newItems.splice(insertIndex, 0, sourceItem);
-        } else {
-          newItems.push(sourceItem);
-        }
-        
-        return {
-          ...schedule,
-          items: newItems
-        };
-      }
-      return schedule;
-    });
+    // Only allow reordering within the same day
+    if (!targetSchedule || sourceSchedule.day !== targetSchedule.day) {
+      return;
+    }
 
-    // Update the main items array to reflect new order
+    if (sourceIndex === targetIndex) return;
+
+    // Reorder within the same day
+    const updatedSchedule = {
+      ...sourceSchedule,
+      items: arrayMove(sourceSchedule.items, sourceIndex, targetIndex)
+    };
+
+    const updatedSchedules = daySchedules.map(schedule => 
+      schedule.day === sourceSchedule!.day ? updatedSchedule : schedule
+    );
+
+    // Update the main items array
     const newItems: ItineraryItem[] = [];
     updatedSchedules.forEach(schedule => {
       schedule.items.forEach(item => {
@@ -335,13 +294,44 @@ const Itinerary = () => {
     const freshSchedules = generateDaySchedules(newItems);
     setDaySchedules(freshSchedules);
     generateScheduleSuggestions(newItems, freshSchedules);
+  };
+
+  const moveAttractionToDay = (attractionId: string, targetDay: number) => {
+    // Find the attraction in current schedules
+    let sourceSchedule: DaySchedule | null = null;
+    let sourceItem: DaySchedule['items'][0] | null = null;
+
+    for (const schedule of daySchedules) {
+      const item = schedule.items.find(item => item.id === attractionId);
+      if (item) {
+        sourceSchedule = schedule;
+        sourceItem = item;
+        break;
+      }
+    }
+
+    if (!sourceSchedule || !sourceItem || sourceSchedule.day === targetDay) return;
+
+    // Update the main items array
+    const newItems: ItineraryItem[] = savedItems.map(item => 
+      item.id === attractionId ? { ...item, day: targetDay } : item
+    );
+
+    setSavedItems(newItems);
+    localStorage.setItem('singapore-itinerary', JSON.stringify(newItems));
+    
+    // Regenerate schedules
+    const freshSchedules = generateDaySchedules(newItems);
+    setDaySchedules(freshSchedules);
+    generateScheduleSuggestions(newItems, freshSchedules);
 
     toast({
-      title: "Schedule Updated",
-      description: `Moved ${sourceItem.attraction?.name} to Day ${targetDay}`,
+      title: "Moved to Day " + targetDay,
+      description: `${sourceItem.attraction?.name} moved from Day ${sourceSchedule.day} to Day ${targetDay}`,
       variant: "default"
     });
   };
+
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -579,42 +569,85 @@ const Itinerary = () => {
       opacity: isDragging ? 0.5 : 1,
     };
 
+    // Get available days for moving
+    const availableDays = daySchedules.filter(d => d.day !== getCurrentDayForItem(item.id)).map(d => d.day);
+
     return (
       <div
         ref={setNodeRef}
         style={style}
-        className="bg-background border border-border rounded-lg p-3 cursor-grab active:cursor-grabbing hover:shadow-sm transition-smooth"
-        {...attributes}
-        {...listeners}
+        className="bg-background border border-border rounded-lg p-3 hover:shadow-sm transition-smooth"
       >
-        <div className="flex items-center space-x-2 mb-1">
-          <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
-            {index + 1}
+        <div className="flex items-start space-x-2">
+          {/* Drag Handle */}
+          <div
+            {...attributes}
+            {...listeners}
+            className="flex items-center justify-center cursor-grab active:cursor-grabbing mt-1"
+            title="Drag to reorder within day"
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
           </div>
-          <span className="font-medium text-sm">{item.timeSlot}</span>
-          <GripVertical className="h-4 w-4 text-muted-foreground ml-auto" />
-          {item.openingConflict && (
-            <Badge variant="destructive" className="text-xs">
-              Check Hours
-            </Badge>
-          )}
-        </div>
-        <div className="ml-8">
-          <h5 className="font-medium">{item.attraction?.name}</h5>
-          <p className="text-xs text-muted-foreground">
-            Duration: {item.duration}
-            {item.openingConflict && (
-              <span className="text-destructive ml-2">
-                • Opens: {item.attraction?.openingHours}
-              </span>
-            )}
-          </p>
-          {item.travelTime && (
-            <p className="text-xs text-muted-foreground italic">+ {item.travelTime}</p>
+
+          {/* Main Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-2 mb-1">
+              <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
+                {index + 1}
+              </div>
+              <span className="font-medium text-sm">{item.timeSlot}</span>
+              {item.openingConflict && (
+                <Badge variant="destructive" className="text-xs">
+                  Check Hours
+                </Badge>
+              )}
+            </div>
+            <div className="ml-8">
+              <h5 className="font-medium">{item.attraction?.name}</h5>
+              <p className="text-xs text-muted-foreground">
+                Duration: {item.duration}
+                {item.openingConflict && (
+                  <span className="text-destructive ml-2">
+                    • Opens: {item.attraction?.openingHours}
+                  </span>
+                )}
+              </p>
+              {item.travelTime && (
+                <p className="text-xs text-muted-foreground italic">+ {item.travelTime}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Day Movement Buttons */}
+          {availableDays.length > 0 && (
+            <div className="flex flex-col space-y-1">
+              {availableDays.map(dayNum => (
+                <Button
+                  key={dayNum}
+                  variant="outline"
+                  size="sm"
+                  className="h-6 w-12 text-xs p-0"
+                  onClick={() => moveAttractionToDay(item.id, dayNum)}
+                  title={`Move to Day ${dayNum}`}
+                >
+                  D{dayNum}
+                </Button>
+              ))}
+            </div>
           )}
         </div>
       </div>
     );
+  };
+
+  // Helper function to get current day for an item
+  const getCurrentDayForItem = (itemId: string): number => {
+    for (const schedule of daySchedules) {
+      if (schedule.items.some(item => item.id === itemId)) {
+        return schedule.day;
+      }
+    }
+    return 1;
   };
 
   return (
@@ -762,20 +795,7 @@ const Itinerary = () => {
                                       .map(item => item.id)} 
                                     strategy={verticalListSortingStrategy}
                                   >
-                                    <div 
-                                      className="min-h-[80px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2 transition-colors hover:border-primary/50"
-                                      onDragOver={(e) => {
-                                        e.preventDefault();
-                                        e.currentTarget.classList.add('border-primary/50', 'bg-primary/5');
-                                      }}
-                                      onDragLeave={(e) => {
-                                        e.currentTarget.classList.remove('border-primary/50', 'bg-primary/5');
-                                      }}
-                                      onDrop={(e) => {
-                                        e.preventDefault();
-                                        e.currentTarget.classList.remove('border-primary/50', 'bg-primary/5');
-                                      }}
-                                    >
+                                    <div className="min-h-[80px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2">
                                       {daySchedule.items
                                         .filter(item => parseInt(item.timeSlot.split(':')[0]) < 12)
                                         .map((item, index) => (
@@ -783,7 +803,7 @@ const Itinerary = () => {
                                         ))}
                                       {daySchedule.items.filter(item => parseInt(item.timeSlot.split(':')[0]) < 12).length === 0 && (
                                         <p className="text-muted-foreground text-xs text-center py-4">
-                                          Drop attractions here for morning
+                                          No morning activities scheduled
                                         </p>
                                       )}
                                     </div>
@@ -797,22 +817,7 @@ const Itinerary = () => {
                                   <div className="w-2 h-2 bg-orange-400 rounded-full mr-2"></div>
                                   Afternoon (12:00 - 18:00)
                                 </h4>
-                                <div 
-                                  className="min-h-[80px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2 transition-colors hover:border-primary/50"
-                                  data-droppable="true"
-                                  data-day={daySchedule.day}
-                                  data-time-slot="afternoon"
-                                  onDragOver={(e) => {
-                                    e.preventDefault();
-                                    e.currentTarget.classList.add('border-primary/50', 'bg-primary/5');
-                                  }}
-                                  onDragLeave={(e) => {
-                                    e.currentTarget.classList.remove('border-primary/50', 'bg-primary/5');
-                                  }}
-                                  onDrop={(e) => {
-                                    e.currentTarget.classList.remove('border-primary/50', 'bg-primary/5');
-                                  }}
-                                >
+                                <div>
                                   <SortableContext 
                                     items={daySchedule.items
                                       .filter(item => {
@@ -822,20 +827,24 @@ const Itinerary = () => {
                                       .map(item => item.id)} 
                                     strategy={verticalListSortingStrategy}
                                   >
-                                    {daySchedule.items
-                                      .filter(item => {
+                                    <div className="min-h-[80px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2">
+                                      {daySchedule.items
+                                        .filter(item => {
+                                          const hour = parseInt(item.timeSlot.split(':')[0]);
+                                          return hour >= 12 && hour < 18;
+                                        })
+                                        .map((item, index) => (
+                                          <SortableScheduleItem key={item.id} item={item} index={index} />
+                                        ))}
+                                      {daySchedule.items.filter(item => {
                                         const hour = parseInt(item.timeSlot.split(':')[0]);
                                         return hour >= 12 && hour < 18;
-                                      })
-                                      .map((item, index) => (
-                                        <SortableScheduleItem key={item.id} item={item} index={index} />
-                                      ))}
-                                    {daySchedule.items.filter(item => {
-                                      const hour = parseInt(item.timeSlot.split(':')[0]);
-                                      return hour >= 12 && hour < 18;
-                                    }).length === 0 && (
-                                      <p className="text-muted-foreground text-xs text-center py-4">Drop attractions here for afternoon</p>
-                                    )}
+                                      }).length === 0 && (
+                                        <p className="text-muted-foreground text-xs text-center py-4">
+                                          No afternoon activities scheduled
+                                        </p>
+                                      )}
+                                    </div>
                                   </SortableContext>
                                 </div>
                               </div>
@@ -846,36 +855,25 @@ const Itinerary = () => {
                                   <div className="w-2 h-2 bg-purple-400 rounded-full mr-2"></div>
                                   Evening (18:00+)
                                 </h4>
-                                <div 
-                                  className="min-h-[80px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2 transition-colors hover:border-primary/50"
-                                  data-droppable="true"
-                                  data-day={daySchedule.day}
-                                  data-time-slot="evening"
-                                  onDragOver={(e) => {
-                                    e.preventDefault();
-                                    e.currentTarget.classList.add('border-primary/50', 'bg-primary/5');
-                                  }}
-                                  onDragLeave={(e) => {
-                                    e.currentTarget.classList.remove('border-primary/50', 'bg-primary/5');
-                                  }}
-                                  onDrop={(e) => {
-                                    e.currentTarget.classList.remove('border-primary/50', 'bg-primary/5');
-                                  }}
-                                >
+                                <div>
                                   <SortableContext 
                                     items={daySchedule.items
                                       .filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18)
                                       .map(item => item.id)} 
                                     strategy={verticalListSortingStrategy}
                                   >
-                                    {daySchedule.items
-                                      .filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18)
-                                      .map((item, index) => (
-                                        <SortableScheduleItem key={item.id} item={item} index={index} />
-                                      ))}
-                                    {daySchedule.items.filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18).length === 0 && (
-                                      <p className="text-muted-foreground text-xs text-center py-4">Drop attractions here for evening</p>
-                                    )}
+                                    <div className="min-h-[80px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2">
+                                      {daySchedule.items
+                                        .filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18)
+                                        .map((item, index) => (
+                                          <SortableScheduleItem key={item.id} item={item} index={index} />
+                                        ))}
+                                      {daySchedule.items.filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18).length === 0 && (
+                                        <p className="text-muted-foreground text-xs text-center py-4">
+                                          No evening activities scheduled
+                                        </p>
+                                      )}
+                                    </div>
                                   </SortableContext>
                                 </div>
                               </div>
