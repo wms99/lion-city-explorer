@@ -15,6 +15,22 @@ interface ItineraryItem {
   suggestedDuration?: number; // in minutes
   optimalTimeSlot?: 'morning' | 'afternoon' | 'evening' | 'night';
   visitType?: 'quick' | 'standard' | 'extended';
+  day?: number;
+}
+
+interface DaySchedule {
+  day: number;
+  date: string;
+  items: (ItineraryItem & { 
+    attraction: Attraction; 
+    timeSlot: string; 
+    duration: string; 
+    travelTime?: string;
+    openingConflict?: boolean;
+  })[];
+  totalDuration: number;
+  startTime: string;
+  endTime: string;
 }
 
 const Itinerary = () => {
@@ -22,18 +38,52 @@ const Itinerary = () => {
   const { toast } = useToast();
   const [savedItems, setSavedItems] = useState<ItineraryItem[]>([]);
   const [scheduleSuggestions, setScheduleSuggestions] = useState<string[]>([]);
+  const [selectedDay, setSelectedDay] = useState<number>(1);
+  const [daySchedules, setDaySchedules] = useState<DaySchedule[]>([]);
 
   useEffect(() => {
     const loadItinerary = () => {
       const saved = JSON.parse(localStorage.getItem('singapore-itinerary') || '[]');
       setSavedItems(saved);
-      generateScheduleSuggestions(saved);
+      const schedules = generateDaySchedules(saved);
+      setDaySchedules(schedules);
+      generateScheduleSuggestions(saved, schedules);
     };
 
     loadItinerary();
   }, []);
 
-  const generateScheduleSuggestions = (items: ItineraryItem[]) => {
+  // Parse opening hours to check if attraction is open at specific time
+  const isAttractionOpen = (attraction: Attraction, timeInMinutes: number): boolean => {
+    const hours = attraction.openingHours.toLowerCase();
+    
+    // Handle 24/7 attractions
+    if (hours.includes('24/7') || hours.includes('24 hours')) return true;
+    
+    // Extract opening and closing times using regex
+    const timeMatch = hours.match(/(\d{1,2}):?(\d{0,2})\s*(am|pm)?\s*-\s*(\d{1,2}):?(\d{0,2})\s*(am|pm)/i);
+    if (!timeMatch) return true; // If we can't parse, assume it's open
+    
+    const [, openHour, openMin = '00', openPeriod, closeHour, closeMin = '00', closePeriod] = timeMatch;
+    
+    let openTime = parseInt(openHour) * 60 + parseInt(openMin);
+    let closeTime = parseInt(closeHour) * 60 + parseInt(closeMin);
+    
+    // Convert to 24-hour format
+    if (openPeriod?.toLowerCase() === 'pm' && parseInt(openHour) !== 12) openTime += 12 * 60;
+    if (closePeriod?.toLowerCase() === 'pm' && parseInt(closeHour) !== 12) closeTime += 12 * 60;
+    if (openPeriod?.toLowerCase() === 'am' && parseInt(openHour) === 12) openTime = parseInt(openMin);
+    if (closePeriod?.toLowerCase() === 'am' && parseInt(closeHour) === 12) closeTime = parseInt(closeMin);
+    
+    // Handle overnight operations (e.g., 6 PM - 2 AM)
+    if (closeTime < openTime) {
+      return timeInMinutes >= openTime || timeInMinutes <= closeTime;
+    }
+    
+    return timeInMinutes >= openTime && timeInMinutes <= closeTime;
+  };
+
+  const generateScheduleSuggestions = (items: ItineraryItem[], schedules: DaySchedule[]) => {
     if (items.length === 0) {
       setScheduleSuggestions([]);
       return;
@@ -42,20 +92,34 @@ const Itinerary = () => {
     const suggestions = [];
     const attractions = items.map(item => getAttractionDetails(item.id)).filter(Boolean);
     
-    // Calculate total estimated time
-    const totalDuration = attractions.reduce((total, attraction) => {
-      return total + getAttractionDuration(attraction!);
-    }, 0);
+    // Multi-day schedule insights
+    if (schedules.length > 1) {
+      suggestions.push(`📅 ${schedules.length}-day itinerary created! Each day is optimized for opening hours and travel efficiency.`);
+    }
+    
+    // Check for opening hour conflicts
+    const conflictDays = schedules.filter(day => 
+      day.items.some(item => item.openingConflict)
+    );
+    
+    if (conflictDays.length > 0) {
+      suggestions.push(`⚠️ Some attractions may be closed during scheduled times on Day ${conflictDays.map(d => d.day).join(', ')}. Check opening hours before visiting.`);
+    }
+    
+    // Calculate total estimated time across all days
+    const totalDuration = schedules.reduce((total, day) => total + day.totalDuration, 0);
     
     const totalHours = Math.ceil(totalDuration / 60);
     
-    // Duration-based suggestions
-    if (totalHours < 4) {
-      suggestions.push(`Perfect half-day itinerary! Your ${totalHours}-hour schedule allows for a relaxed pace with time for meals.`);
-    } else if (totalHours <= 8) {
-      suggestions.push(`Great full-day adventure! Plan for ${totalHours} hours with meal breaks included.`);
+    // Duration-based suggestions with multi-day context
+    if (schedules.length === 1) {
+      if (totalHours < 4) {
+        suggestions.push(`Perfect half-day itinerary! Your ${totalHours}-hour schedule allows for a relaxed pace with time for meals.`);
+      } else if (totalHours <= 8) {
+        suggestions.push(`Great full-day adventure! Plan for ${totalHours} hours with meal breaks included.`);
+      }
     } else {
-      suggestions.push(`Ambitious ${totalHours}-hour itinerary! Consider splitting across multiple days for the best experience.`);
+      suggestions.push(`Multi-day adventure spanning ${totalHours} total hours across ${schedules.length} days.`);
     }
     
     // Category-specific suggestions
@@ -116,7 +180,9 @@ const Itinerary = () => {
     const updatedItems = savedItems.filter(item => item.id !== id);
     setSavedItems(updatedItems);
     localStorage.setItem('singapore-itinerary', JSON.stringify(updatedItems));
-    generateScheduleSuggestions(updatedItems);
+    const schedules = generateDaySchedules(updatedItems);
+    setDaySchedules(schedules);
+    generateScheduleSuggestions(updatedItems, schedules);
     
     toast({
       title: "Removed from itinerary",
@@ -128,7 +194,9 @@ const Itinerary = () => {
   const clearItinerary = () => {
     setSavedItems([]);
     localStorage.setItem('singapore-itinerary', JSON.stringify([]));
+    setDaySchedules([]);
     setScheduleSuggestions([]);
+    setSelectedDay(1);
     
     toast({
       title: "Itinerary cleared",
@@ -208,11 +276,12 @@ const Itinerary = () => {
     return 'afternoon';
   };
 
-  const getOptimalSchedule = () => {
-    if (savedItems.length === 0) return [];
+  // Generate multi-day schedules with opening hours consideration
+  const generateDaySchedules = (items: ItineraryItem[]): DaySchedule[] => {
+    if (items.length === 0) return [];
     
     // Get attraction details with enhanced duration info
-    const itemsWithDetails = savedItems.map(item => {
+    const itemsWithDetails = items.map(item => {
       const attraction = getAttractionDetails(item.id);
       if (!attraction) return null;
       
@@ -236,9 +305,48 @@ const Itinerary = () => {
       return aPriority - bPriority;
     });
 
-    // Create realistic schedule with proper time allocation
+    // Split into days (max 8-10 hours per day)
+    const maxDailyDuration = 8 * 60; // 8 hours in minutes
+    const days: DaySchedule[] = [];
+    let currentDay: typeof sortedItems = [];
+    let currentDayDuration = 0;
+
+    for (const item of sortedItems) {
+      const itemDuration = item.suggestedDuration + 30; // Include travel time
+      
+      // Check if adding this item would exceed daily limit or if it's a full-day attraction
+      const isFullDayAttraction = item.suggestedDuration > 4 * 60; // 4+ hours
+      const wouldExceedLimit = currentDayDuration + itemDuration > maxDailyDuration;
+      
+      if (wouldExceedLimit && currentDay.length > 0 || isFullDayAttraction && currentDay.length > 0) {
+        // Create a day from current items
+        const daySchedule = createDaySchedule(currentDay, days.length + 1);
+        days.push(daySchedule);
+        
+        // Start new day
+        currentDay = [item];
+        currentDayDuration = itemDuration;
+      } else {
+        currentDay.push(item);
+        currentDayDuration += itemDuration;
+      }
+    }
+
+    // Add remaining items as final day
+    if (currentDay.length > 0) {
+      const daySchedule = createDaySchedule(currentDay, days.length + 1);
+      days.push(daySchedule);
+    }
+
+    return days;
+  };
+
+  const createDaySchedule = (items: Array<ItineraryItem & { attraction: Attraction; suggestedDuration: number; optimalTimeSlot: 'morning' | 'afternoon' | 'evening' | 'night'; visitType: 'standard' }>, dayNumber: number): DaySchedule => {
     let currentTime = 9 * 60; // Start at 9:00 AM (in minutes)
-    const schedule = sortedItems.map((item, index) => {
+    const today = new Date();
+    const dayDate = new Date(today.getTime() + (dayNumber - 1) * 24 * 60 * 60 * 1000);
+    
+    const scheduledItems = items.map((item, index) => {
       const duration = item.suggestedDuration;
       const startHour = Math.floor(currentTime / 60);
       const startMin = currentTime % 60;
@@ -246,17 +354,20 @@ const Itinerary = () => {
       const endHour = Math.floor(endTime / 60);
       const endMin = endTime % 60;
       
+      // Check if attraction is open at scheduled time
+      const openingConflict = !isAttractionOpen(item.attraction, currentTime);
+      
       const timeSlot = `${startHour.toString().padStart(2, '0')}:${startMin.toString().padStart(2, '0')} - ${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`;
       
       // Add travel time between attractions (15-30 min depending on distance)
-      const travelTime = index < sortedItems.length - 1 ? 30 : 0;
+      const travelTime = index < items.length - 1 ? 30 : 0;
       currentTime = endTime + travelTime;
       
       // Add meal breaks for long schedules
-      if (currentTime > 12 * 60 && currentTime < 13 * 60 && index < sortedItems.length - 1) {
+      if (currentTime > 12 * 60 && currentTime < 13 * 60 && index < items.length - 1) {
         currentTime = 13 * 60; // Lunch break until 1 PM
       }
-      if (currentTime > 18 * 60 && currentTime < 19 * 60 && index < sortedItems.length - 1) {
+      if (currentTime > 18 * 60 && currentTime < 19 * 60 && index < items.length - 1) {
         currentTime = 19 * 60; // Dinner break until 7 PM
       }
       
@@ -264,11 +375,23 @@ const Itinerary = () => {
         ...item,
         timeSlot,
         duration: `${Math.floor(duration / 60)}h ${duration % 60}m`,
-        travelTime: travelTime > 0 ? `${travelTime}m travel` : null
+        travelTime: travelTime > 0 ? `${travelTime}m travel` : undefined,
+        openingConflict
       };
     });
     
-    return schedule;
+    const totalDuration = items.reduce((total, item) => total + item.suggestedDuration, 0);
+    const startTime = scheduledItems.length > 0 ? scheduledItems[0].timeSlot.split(' - ')[0] : '09:00';
+    const endTime = scheduledItems.length > 0 ? scheduledItems[scheduledItems.length - 1].timeSlot.split(' - ')[1] : '09:00';
+    
+    return {
+      day: dayNumber,
+      date: dayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+      items: scheduledItems,
+      totalDuration,
+      startTime,
+      endTime
+    };
   };
 
   return (
@@ -376,31 +499,83 @@ const Itinerary = () => {
 
             {/* Schedule & Recommendations */}
             <div className="space-y-4">
-              {/* Suggested Schedule */}
-              <Card className="shadow-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Route className="h-5 w-5 mr-2" />
-                    Suggested Schedule
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {getOptimalSchedule().map((item, index) => (
-                    <div key={item.id} className="mb-4 last:mb-0">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
-                          {index + 1}
-                        </div>
-                        <span className="font-medium text-sm">{item.timeSlot}</span>
-                      </div>
-                      <div className="ml-8">
-                        <h5 className="font-medium">{item.attraction?.name}</h5>
-                        <p className="text-xs text-muted-foreground">Duration: {item.duration}</p>
-                      </div>
+              {/* Day Filter */}
+              {daySchedules.length > 1 && (
+                <Card className="shadow-card">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Select Day</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {daySchedules.map((day) => (
+                        <Button
+                          key={day.day}
+                          variant={selectedDay === day.day ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedDay(day.day)}
+                          className="flex flex-col h-auto py-2 px-3"
+                        >
+                          <span className="font-medium">Day {day.day}</span>
+                          <span className="text-xs opacity-75">{day.date}</span>
+                        </Button>
+                      ))}
                     </div>
-                  ))}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Day Schedule */}
+              {daySchedules.length > 0 && (
+                <Card className="shadow-card">
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Route className="h-5 w-5 mr-2" />
+                      {daySchedules.length > 1 ? `Day ${selectedDay} Schedule` : 'Suggested Schedule'}
+                    </CardTitle>
+                    {daySchedules.length > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        {daySchedules.find(d => d.day === selectedDay)?.date} • 
+                        {daySchedules.find(d => d.day === selectedDay)?.startTime} - 
+                        {daySchedules.find(d => d.day === selectedDay)?.endTime} • 
+                        {Math.ceil((daySchedules.find(d => d.day === selectedDay)?.totalDuration || 0) / 60)}h total
+                      </p>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    {daySchedules.find(d => d.day === selectedDay)?.items.map((item, index) => (
+                      <div key={item.id} className="mb-4 last:mb-0">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
+                            {index + 1}
+                          </div>
+                          <span className="font-medium text-sm">{item.timeSlot}</span>
+                          {item.openingConflict && (
+                            <Badge variant="destructive" className="text-xs">
+                              Check Hours
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="ml-8">
+                          <h5 className="font-medium">{item.attraction?.name}</h5>
+                          <p className="text-xs text-muted-foreground">
+                            Duration: {item.duration}
+                            {item.openingConflict && (
+                              <span className="text-destructive ml-2">
+                                • Opens: {item.attraction?.openingHours}
+                              </span>
+                            )}
+                          </p>
+                          {item.travelTime && (
+                            <p className="text-xs text-muted-foreground italic">+ {item.travelTime}</p>
+                          )}
+                        </div>
+                      </div>
+                    )) || (
+                      <p className="text-muted-foreground text-sm">No schedule available for this day.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Smart Recommendations */}
               <Card className="shadow-card">
