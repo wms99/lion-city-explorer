@@ -77,7 +77,7 @@ export function WeatherCard() {
     return (
       <Card className="shadow-card">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">{t('home.weather')}</CardTitle>
+          <CardTitle className="text-lg font-semibold">Weather Forecast</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-4">
@@ -100,7 +100,7 @@ export function WeatherCard() {
       <CardHeader className="pb-3">
         <CardTitle className="text-lg font-semibold flex items-center space-x-2">
           <Thermometer className="h-5 w-5 text-primary" />
-          <span>{t('home.weather')}</span>
+          <span>Weather Forecast</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -130,7 +130,7 @@ export function WeatherCard() {
 
         {/* 7-Day Forecast */}
         <div>
-          <h4 className="font-medium mb-3 text-foreground">{t('home.next7Days')}</h4>
+          <h4 className="font-medium mb-3 text-foreground">Next 7 Days</h4>
           <div className="space-y-2">
             {weather.forecast.map((day, index) => (
               <div
@@ -143,7 +143,7 @@ export function WeatherCard() {
                   {getWeatherIcon(day.icon)}
                   <div>
                     <p className="font-medium text-sm">
-                      {index === 0 ? t('home.today') : day.day}
+                      {index === 0 ? "Today" : day.day}
                     </p>
                     <p className="text-xs text-muted-foreground">{day.condition}</p>
                   </div>

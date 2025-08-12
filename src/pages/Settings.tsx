@@ -9,7 +9,7 @@ const Settings = () => {
       <div className="max-w-6xl mx-auto">
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold">{t('nav.settings')}</CardTitle>
+            <CardTitle className="text-2xl font-bold">Settings</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">

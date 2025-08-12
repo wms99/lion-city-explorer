@@ -142,7 +142,7 @@ const Itinerary = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-hero bg-clip-text text-transparent">
-              {t('nav.itinerary')}
+              Itinerary Planner
             </h1>
             <p className="text-muted-foreground mt-1">
               Plan your perfect Singapore adventure with personalized schedule recommendations

@@ -61,7 +61,7 @@ const Index = () => {
             ) : (
               <>
                 <h1 className="text-4xl md:text-6xl font-bold mb-4 animate-fade-in">
-                  {userName ? t('home.personalizedGreeting', { name: userName }) : t('home.welcome')}
+                  {userName ? `Welcome, ${userName}!` : "Welcome to Singapore!"}
                 </h1>
                 <p className="text-xl md:text-2xl text-white/90 animate-fade-in">
                   Discover the Lion City with your personal travel companion

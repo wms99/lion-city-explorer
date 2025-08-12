@@ -437,7 +437,7 @@ const Transport = () => {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold bg-gradient-hero bg-clip-text text-transparent">
-            {t('nav.transport')}
+            Transport Options
           </h1>
           <p className="text-muted-foreground mt-1">
             Optimized transport routes for your Singapore itinerary

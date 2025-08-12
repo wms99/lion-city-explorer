@@ -95,7 +95,7 @@ export function EventsCard() {
     return (
       <Card className="shadow-card">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">{t('home.events')}</CardTitle>
+          <CardTitle className="text-lg font-semibold">Exciting Things Happening in SG</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-4">
@@ -113,7 +113,7 @@ export function EventsCard() {
       <CardHeader className="pb-3">
         <CardTitle className="text-lg font-semibold flex items-center space-x-2">
           <Star className="h-5 w-5 text-accent" />
-          <span>{t('home.events')}</span>
+          <span>Exciting Things Happening in SG</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -163,7 +163,7 @@ export function EventsCard() {
                 </Badge>
                 <Button size="sm" variant="outline" className="text-xs px-2 py-1 h-auto">
                   <ExternalLink className="h-3 w-3 mr-1" />
-                  {t('home.viewDetails')}
+                  View Details
                 </Button>
               </div>
             </div>
