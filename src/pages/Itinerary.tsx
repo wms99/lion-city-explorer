@@ -12,6 +12,9 @@ interface ItineraryItem {
   name: string;
   category: string;
   addedAt: string;
+  suggestedDuration?: number; // in minutes
+  optimalTimeSlot?: 'morning' | 'afternoon' | 'evening' | 'night';
+  visitType?: 'quick' | 'standard' | 'extended';
 }
 
 const Itinerary = () => {
@@ -37,34 +40,73 @@ const Itinerary = () => {
     }
 
     const suggestions = [];
+    const attractions = items.map(item => getAttractionDetails(item.id)).filter(Boolean);
     
-    if (items.length === 1) {
-      suggestions.push("Consider adding more attractions to make a full day itinerary.");
+    // Calculate total estimated time
+    const totalDuration = attractions.reduce((total, attraction) => {
+      return total + getAttractionDuration(attraction!);
+    }, 0);
+    
+    const totalHours = Math.ceil(totalDuration / 60);
+    
+    // Duration-based suggestions
+    if (totalHours < 4) {
+      suggestions.push(`Perfect half-day itinerary! Your ${totalHours}-hour schedule allows for a relaxed pace with time for meals.`);
+    } else if (totalHours <= 8) {
+      suggestions.push(`Great full-day adventure! Plan for ${totalHours} hours with meal breaks included.`);
+    } else {
+      suggestions.push(`Ambitious ${totalHours}-hour itinerary! Consider splitting across multiple days for the best experience.`);
     }
     
-    if (items.length >= 2) {
-      suggestions.push("Plan 2-3 hours per major attraction for a comfortable pace.");
-    }
+    // Category-specific suggestions
+    const categories = attractions.map(a => a!.category);
+    const hasFood = categories.includes('food');
+    const hasCulture = categories.includes('culture');
+    const hasTourist = categories.includes('tourist');
+    const hasShopping = categories.includes('shopping');
     
-    const hasFood = items.some(item => item.category === 'food');
-    if (!hasFood) {
-      suggestions.push("Consider adding food stops from Singapore's famous hawker centers between attractions.");
+    if (!hasFood && items.length >= 2) {
+      suggestions.push("💡 Add a hawker center or restaurant between attractions for authentic Singapore cuisine.");
     }
-    
-    const hasCulture = items.some(item => item.category === 'culture');
-    const hasTourist = items.some(item => item.category === 'tourist');
     
     if (hasCulture && hasTourist) {
-      suggestions.push("Great mix! Visit cultural sites in the morning when it's cooler, and indoor attractions during midday heat.");
+      suggestions.push("🌅 Visit cultural sites (Chinatown, Little India) in the morning when it's cooler and less crowded.");
     }
     
+    if (attractions.some(a => a!.id === 'gardens-by-the-bay')) {
+      suggestions.push("✨ Gardens by the Bay is spectacular at sunset - plan your visit for 6-8 PM for the light show.");
+    }
+    
+    if (attractions.some(a => a!.id === 'marina-bay-sands')) {
+      suggestions.push("🏙️ Marina Bay Sands SkyPark offers stunning views - consider visiting during golden hour or after dark.");
+    }
+    
+    if (attractions.some(a => a!.id === 'sentosa-island' || a!.id === 'universal-studios')) {
+      suggestions.push("🎢 Sentosa/Universal Studios are full-day destinations - allocate 6-8 hours and start early!");
+    }
+    
+    // Practical tips based on attractions
+    const outdoorAttractions = attractions.filter(a => 
+      ['singapore-zoo', 'singapore-botanic-gardens', 'east-coast-park', 'sentosa-island'].includes(a!.id)
+    );
+    
+    if (outdoorAttractions.length >= 2) {
+      suggestions.push("☀️ Multiple outdoor attractions detected - bring sunscreen, water, and plan for Singapore's tropical weather.");
+    }
+    
+    // Transportation tips
     if (items.length >= 3) {
-      suggestions.push("Consider grouping nearby attractions together to minimize travel time.");
-      suggestions.push("Book tickets online in advance for popular attractions like Marina Bay Sands SkyPark.");
+      suggestions.push("🚇 Group nearby attractions: Marina Bay area, Chinatown/Chinatown Heritage, Orchard Road for efficient travel.");
+      suggestions.push("📱 Download the Singapore MRT app for real-time public transport directions between attractions.");
     }
     
-    if (items.length >= 4) {
-      suggestions.push("This looks like a full day! Start early (9 AM) and plan for dinner at one of the food locations.");
+    // Advanced booking suggestions
+    const needsBooking = attractions.filter(a => 
+      ['marina-bay-sands', 'singapore-flyer', 'universal-studios', 'night-safari'].includes(a!.id)
+    );
+    
+    if (needsBooking.length > 0) {
+      suggestions.push("🎫 Book tickets online in advance for popular attractions to skip queues and save money.");
     }
 
     setScheduleSuggestions(suggestions);
@@ -99,38 +141,132 @@ const Itinerary = () => {
     return singaporeAttractions.find(attraction => attraction.id === id) || null;
   };
 
+  // Research-based duration recommendations (in minutes)
+  const getAttractionDuration = (attraction: Attraction, visitType: 'quick' | 'standard' | 'extended' = 'standard'): number => {
+    const baseDurations: Record<string, { quick: number; standard: number; extended: number }> = {
+      // Major Tourist Attractions
+      'marina-bay-sands': { quick: 60, standard: 120, extended: 180 },
+      'gardens-by-the-bay': { quick: 90, standard: 150, extended: 240 },
+      'sentosa-island': { quick: 240, standard: 480, extended: 720 }, // Full day destination
+      'singapore-zoo': { quick: 120, standard: 180, extended: 300 },
+      'universal-studios': { quick: 300, standard: 480, extended: 600 }, // Theme park - full day
+      'singapore-flyer': { quick: 45, standard: 60, extended: 90 },
+      'night-safari': { quick: 120, standard: 180, extended: 240 },
+      'jurong-bird-park': { quick: 120, standard: 180, extended: 240 },
+      'sea-aquarium': { quick: 90, standard: 120, extended: 180 },
+      'singapore-botanic-gardens': { quick: 60, standard: 120, extended: 180 },
+      'raffles-hotel': { quick: 30, standard: 45, extended: 75 },
+      
+      // Cultural Sites
+      'chinatown': { quick: 60, standard: 120, extended: 180 },
+      'little-india': { quick: 60, standard: 90, extended: 150 },
+      'kampong-glam': { quick: 45, standard: 75, extended: 120 },
+      'haw-par-villa': { quick: 45, standard: 90, extended: 120 },
+      
+      // Quick Visits
+      'merlion-park': { quick: 20, standard: 30, extended: 45 },
+      'clarke-quay': { quick: 45, standard: 90, extended: 180 },
+      
+      // Food Centers
+      'hawker-centres': { quick: 30, standard: 60, extended: 90 },
+      'newton-food-centre': { quick: 30, standard: 60, extended: 90 },
+      'lau-pa-sat': { quick: 30, standard: 45, extended: 75 },
+      'east-coast-park': { quick: 45, standard: 90, extended: 150 },
+      'holland-village': { quick: 45, standard: 75, extended: 120 },
+      
+      // Shopping
+      'orchard-road': { quick: 60, standard: 180, extended: 360 }, // Shopping can take all day
+    };
+
+    const duration = baseDurations[attraction.id] || { quick: 60, standard: 90, extended: 120 };
+    return duration[visitType];
+  };
+
+  // Determine optimal time slot based on attraction type and characteristics
+  const getOptimalTimeSlot = (attraction: Attraction): 'morning' | 'afternoon' | 'evening' | 'night' => {
+    // Night-specific attractions
+    if (attraction.id === 'night-safari' || attraction.id === 'clarke-quay') return 'night';
+    
+    // Evening attractions (better lighting, cooler)
+    if (attraction.id === 'gardens-by-the-bay' || attraction.id === 'singapore-flyer' || 
+        attraction.id === 'marina-bay-sands') return 'evening';
+    
+    // Morning attractions (cooler weather, fewer crowds)
+    if (attraction.category === 'culture' || attraction.id === 'singapore-zoo' || 
+        attraction.id === 'singapore-botanic-gardens' || attraction.id === 'jurong-bird-park') return 'morning';
+    
+    // Food centers for meal times
+    if (attraction.category === 'food') {
+      if (attraction.id.includes('newton') || attraction.id.includes('clarke')) return 'night';
+      return 'afternoon'; // Most food centers for lunch/dinner
+    }
+    
+    // Shopping in afternoon (avoid morning rush, cool indoor environment)
+    if (attraction.category === 'shopping') return 'afternoon';
+    
+    // Default to afternoon for most tourist attractions
+    return 'afternoon';
+  };
+
   const getOptimalSchedule = () => {
     if (savedItems.length === 0) return [];
     
-    // Simple scheduling logic - group by area and suggest timing
-    const schedule = savedItems.map((item, index) => {
+    // Get attraction details with enhanced duration info
+    const itemsWithDetails = savedItems.map(item => {
       const attraction = getAttractionDetails(item.id);
       if (!attraction) return null;
       
-      let timeSlot = "";
-      let duration = "";
-      
-      if (index === 0) {
-        timeSlot = "9:00 AM - 11:30 AM";
-        duration = "2.5 hours";
-      } else if (index === 1) {
-        timeSlot = "12:00 PM - 2:30 PM";
-        duration = "2.5 hours";
-      } else if (index === 2) {
-        timeSlot = "3:00 PM - 5:30 PM";
-        duration = "2.5 hours";
-      } else {
-        timeSlot = "6:00 PM - 8:30 PM";
-        duration = "2.5 hours";
-      }
+      const suggestedDuration = getAttractionDuration(attraction);
+      const optimalTimeSlot = getOptimalTimeSlot(attraction);
       
       return {
         ...item,
         attraction,
-        timeSlot,
-        duration
+        suggestedDuration,
+        optimalTimeSlot,
+        visitType: 'standard' as const
       };
     }).filter(Boolean);
+
+    // Sort by optimal time slot priority
+    const timeSlotPriority = { morning: 1, afternoon: 2, evening: 3, night: 4 };
+    const sortedItems = itemsWithDetails.sort((a, b) => {
+      const aPriority = timeSlotPriority[a.optimalTimeSlot];
+      const bPriority = timeSlotPriority[b.optimalTimeSlot];
+      return aPriority - bPriority;
+    });
+
+    // Create realistic schedule with proper time allocation
+    let currentTime = 9 * 60; // Start at 9:00 AM (in minutes)
+    const schedule = sortedItems.map((item, index) => {
+      const duration = item.suggestedDuration;
+      const startHour = Math.floor(currentTime / 60);
+      const startMin = currentTime % 60;
+      const endTime = currentTime + duration;
+      const endHour = Math.floor(endTime / 60);
+      const endMin = endTime % 60;
+      
+      const timeSlot = `${startHour.toString().padStart(2, '0')}:${startMin.toString().padStart(2, '0')} - ${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`;
+      
+      // Add travel time between attractions (15-30 min depending on distance)
+      const travelTime = index < sortedItems.length - 1 ? 30 : 0;
+      currentTime = endTime + travelTime;
+      
+      // Add meal breaks for long schedules
+      if (currentTime > 12 * 60 && currentTime < 13 * 60 && index < sortedItems.length - 1) {
+        currentTime = 13 * 60; // Lunch break until 1 PM
+      }
+      if (currentTime > 18 * 60 && currentTime < 19 * 60 && index < sortedItems.length - 1) {
+        currentTime = 19 * 60; // Dinner break until 7 PM
+      }
+      
+      return {
+        ...item,
+        timeSlot,
+        duration: `${Math.floor(duration / 60)}h ${duration % 60}m`,
+        travelTime: travelTime > 0 ? `${travelTime}m travel` : null
+      };
+    });
     
     return schedule;
   };
@@ -296,7 +432,15 @@ const Itinerary = () => {
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-secondary">
-                        {Math.ceil(savedItems.length * 2.5)}h
+                        {(() => {
+                          const totalMinutes = savedItems.reduce((total, item) => {
+                            const attraction = getAttractionDetails(item.id);
+                            return total + (attraction ? getAttractionDuration(attraction) : 90);
+                          }, 0);
+                          const hours = Math.floor(totalMinutes / 60);
+                          const minutes = totalMinutes % 60;
+                          return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+                        })()}
                       </div>
                       <div className="text-xs text-muted-foreground">Est. Duration</div>
                     </div>
