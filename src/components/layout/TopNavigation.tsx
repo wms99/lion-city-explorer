@@ -16,11 +16,11 @@ export function TopNavigation() {
   const { t } = useTranslation();
 
   const items = [
-    { title: t('nav.home'), url: "/", icon: Home },
-    { title: t('nav.touristSpots'), url: "/tourist-spots", icon: MapPin },
-    { title: t('nav.itinerary'), url: "/itinerary", icon: Calendar },
-    { title: t('nav.transport'), url: "/transport", icon: Bus },
-    { title: t('nav.settings'), url: "/settings", icon: Settings },
+    { title: "Home", url: "/", icon: Home },
+    { title: "Attractions", url: "/tourist-spots", icon: MapPin },
+    { title: "Itinerary", url: "/itinerary", icon: Calendar },
+    { title: "Transport", url: "/transport", icon: Bus },
+    { title: "Settings", url: "/settings", icon: Settings },
   ];
 
   const isActive = (path: string) => currentPath === path;
