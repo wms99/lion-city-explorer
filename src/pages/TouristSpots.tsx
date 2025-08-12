@@ -12,7 +12,7 @@ const TouristSpots = () => {
   const [viewMode, setViewMode] = useState<'map' | 'grid'>('map');
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
-  const categories = ['all', 'tourist', 'food', 'shopping', 'culture'];
+  const categories = ['all', 'tourist', 'food', 'shopping', 'culture', 'events'];
   const filteredAttractions = filterCategory === 'all' 
     ? singaporeAttractions 
     : singaporeAttractions.filter(a => a.category === filterCategory);
@@ -86,7 +86,7 @@ const TouristSpots = () => {
               </p>
             </CardHeader>
             <CardContent>
-              <InteractiveMap />
+              <InteractiveMap filteredAttractions={filteredAttractions} />
             </CardContent>
           </Card>
         ) : (

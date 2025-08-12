@@ -16,7 +16,11 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-export function InteractiveMap() {
+interface InteractiveMapProps {
+  filteredAttractions?: Attraction[];
+}
+
+export function InteractiveMap({ filteredAttractions = singaporeAttractions }: InteractiveMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<L.Marker[]>([]);
@@ -26,17 +30,27 @@ export function InteractiveMap() {
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    // Initialize map
-    mapRef.current = L.map(mapContainerRef.current).setView([1.3521, 103.8198], 11);
+    // Clear existing markers when filters change
+    markersRef.current.forEach(marker => {
+      if (mapRef.current) {
+        mapRef.current.removeLayer(marker);
+      }
+    });
+    markersRef.current = [];
 
-    // Add OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 18,
-    }).addTo(mapRef.current);
+    // Initialize map only once
+    if (!mapRef.current) {
+      mapRef.current = L.map(mapContainerRef.current).setView([1.3521, 103.8198], 11);
 
-    // Add markers for each attraction
-    singaporeAttractions.forEach((attraction) => {
+      // Add OpenStreetMap tiles
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18,
+      }).addTo(mapRef.current);
+    }
+
+    // Add markers for filtered attractions
+    filteredAttractions.forEach((attraction) => {
       const iconColor = getMarkerColor(attraction.category);
       
       // Create custom icon
@@ -74,15 +88,14 @@ export function InteractiveMap() {
       markersRef.current.push(marker);
     });
 
-    // Cleanup function
+    // Cleanup function - only when component unmounts
     return () => {
-      if (mapRef.current) {
+      if (mapRef.current && mapContainerRef.current?.children.length === 0) {
         mapRef.current.remove();
         mapRef.current = null;
       }
-      markersRef.current = [];
     };
-  }, []);
+  }, [filteredAttractions]);
 
   const getMarkerColor = (category: Attraction['category']) => {
     switch (category) {
@@ -94,6 +107,8 @@ export function InteractiveMap() {
         return 'bg-purple-500';
       case 'shopping':
         return 'bg-green-500';
+      case 'events':
+        return 'bg-red-500';
       default:
         return 'bg-gray-500';
     }
@@ -176,6 +191,10 @@ export function InteractiveMap() {
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
               <span>Shopping</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <span>Events</span>
             </div>
           </div>
         </div>

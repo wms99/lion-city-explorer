@@ -2,7 +2,7 @@ export interface Attraction {
   id: string;
   name: string;
   description: string;
-  category: 'tourist' | 'food' | 'shopping' | 'culture';
+  category: 'tourist' | 'food' | 'shopping' | 'culture' | 'events';
   rating: number;
   reviewCount: number;
   openingHours: string;
@@ -362,6 +362,236 @@ export const singaporeAttractions: Attraction[] = [
     coordinates: { lat: 1.2581, lng: 103.8197 },
     highlights: ["Open Ocean Gallery", "Shark Seas", "Dolphin Island", "Marine Life", "Educational Programs"],
     nearbyFood: ["Ocean Restaurant", "Feng Shui Inn", "Malaysian Food Street"]
+  },
+  // More Food Spots
+  {
+    id: "maxwell-food-centre",
+    name: "Maxwell Food Centre",
+    description: "Historic hawker center famous for its Hainanese chicken rice and traditional local dishes.",
+    category: "food",
+    rating: 4.6,
+    reviewCount: 12890,
+    openingHours: "8:00 AM - 2:00 AM",
+    ticketPrice: "S$3-8 per dish",
+    budgetCategory: "budget",
+    images: ["/placeholder.svg"],
+    coordinates: { lat: 1.2804, lng: 103.8442 },
+    highlights: ["Tian Tian Hainanese Chicken Rice", "Zhen Zhen Porridge", "Jin Hua Fish Ball Noodles", "Traditional Coffee"],
+    nearbyFood: ["Chinatown Complex", "Amoy Street Food Centre"]
+  },
+  {
+    id: "chinatown-complex",
+    name: "Chinatown Complex Food Centre",
+    description: "Singapore's largest hawker center with over 260 stalls offering diverse Asian cuisines.",
+    category: "food",
+    rating: 4.4,
+    reviewCount: 15234,
+    openingHours: "6:00 AM - 11:00 PM",
+    ticketPrice: "S$2-10 per dish",
+    budgetCategory: "budget",
+    images: ["/placeholder.svg"],
+    coordinates: { lat: 1.2837, lng: 103.8424 },
+    highlights: ["Hong Lim Market", "Cheapest Michelin Star Meal", "Traditional Dim Sum", "Variety of Cuisines"],
+    nearbyFood: ["Liao Fan Hong Kong Soya Sauce Chicken Rice", "Outram Park Ya Hua Rou Gu Cha"]
+  },
+  {
+    id: "singapore-food-trail",
+    name: "Singapore Food Trail (Resorts World)",
+    description: "Indoor food court recreating Singapore's street food culture with heritage stalls.",
+    category: "food",
+    rating: 4.2,
+    reviewCount: 8765,
+    openingHours: "10:00 AM - 11:00 PM",
+    ticketPrice: "S$5-15 per dish",
+    budgetCategory: "mid-range",
+    images: ["/placeholder.svg"],
+    coordinates: { lat: 1.2565, lng: 103.8202 },
+    highlights: ["Heritage Food Stalls", "Air-Conditioned Comfort", "Tourist-Friendly", "Cultural Experience"],
+    nearbyFood: ["Resorts World Restaurants", "Hard Rock Cafe", "Malaysian Food Street"]
+  },
+  {
+    id: "geylang-serai-market",
+    name: "Geylang Serai Market",
+    description: "Traditional Malay market offering authentic local dishes and cultural experiences.",
+    category: "food",
+    rating: 4.3,
+    reviewCount: 6543,
+    openingHours: "6:00 AM - 11:00 PM",
+    ticketPrice: "S$3-12 per dish",
+    budgetCategory: "budget",
+    images: ["/placeholder.svg"],
+    coordinates: { lat: 1.3178, lng: 103.8985 },
+    highlights: ["Malay Cuisine", "Traditional Market", "Ramadan Bazaar", "Cultural Heritage"],
+    nearbyFood: ["Nasi Lemak", "Mee Rebus", "Teh Tarik", "Traditional Kueh"]
+  },
+  // New Tourist Attractions
+  {
+    id: "cloud-forest-dome",
+    name: "Cloud Forest Dome",
+    description: "Spectacular indoor waterfall and mountain vegetation from tropical highlands.",
+    category: "tourist",
+    rating: 4.8,
+    reviewCount: 19876,
+    openingHours: "9:00 AM - 9:00 PM",
+    ticketPrice: "S$12 adults (with conservatory ticket)",
+    budgetCategory: "mid-range",
+    images: ["/placeholder.svg"],
+    coordinates: { lat: 1.2815, lng: 103.8640 },
+    highlights: ["35m Indoor Waterfall", "Treetop Walk", "Crystal Mountain", "Lost World", "Secret Garden"],
+    nearbyFood: ["Pollen Restaurant", "Food Opera", "Majestic Bay Seafood"]
+  },
+  {
+    id: "henderson-waves",
+    name: "Henderson Waves",
+    description: "Singapore's highest pedestrian bridge offering panoramic city and harbor views.",
+    category: "tourist",
+    rating: 4.5,
+    reviewCount: 8932,
+    openingHours: "24/7 (Lighting: 7:00 PM - 2:00 AM)",
+    ticketPrice: "Free",
+    budgetCategory: "budget",
+    images: ["/placeholder.svg"],
+    coordinates: { lat: 1.2756, lng: 103.8156 },
+    highlights: ["City Skyline Views", "Architectural Marvel", "Forest Walk", "Photography Spot", "Night Lighting"],
+    nearbyFood: ["Dempsey Hill Restaurants", "Jones the Grocer", "Long Beach Seafood"]
+  },
+  {
+    id: "marina-barrage",
+    name: "Marina Barrage",
+    description: "Sustainable water supply reservoir with recreational activities and city skyline views.",
+    category: "tourist",
+    rating: 4.4,
+    reviewCount: 11234,
+    openingHours: "24/7 (Gallery: 9:00 AM - 9:00 PM)",
+    ticketPrice: "Free",
+    budgetCategory: "budget",
+    images: ["/placeholder.svg"],
+    coordinates: { lat: 1.2805, lng: 103.8707 },
+    highlights: ["Kite Flying", "Green Roof", "Water Sustainability Gallery", "City Views", "Family Activities"],
+    nearbyFood: ["Marina Bay Sands Food Court", "CE LA VIE", "Bread Street Kitchen"]
+  },
+  {
+    id: "southern-ridges",
+    name: "Southern Ridges",
+    description: "10km elevated walkway connecting parks with lush greenery and wildlife spotting.",
+    category: "tourist",
+    rating: 4.6,
+    reviewCount: 7456,
+    openingHours: "24/7",
+    ticketPrice: "Free",
+    budgetCategory: "budget",
+    images: ["/placeholder.svg"],
+    coordinates: { lat: 1.2698, lng: 103.8021 },
+    highlights: ["Canopy Walk", "Nature Trail", "Wildlife Spotting", "Forest Bathing", "Exercise Route"],
+    nearbyFood: ["Harbourfront Centre", "VivoCity Food Republic", "Faber Peak Restaurant"]
+  },
+  // Events & Entertainment
+  {
+    id: "singapore-flyer-capsule-dining",
+    name: "Singapore Flyer Capsule Dining",
+    description: "Luxury dining experience 165 meters above ground with 360-degree city views.",
+    category: "events",
+    rating: 4.3,
+    reviewCount: 2156,
+    openingHours: "6:00 PM - 10:00 PM (Dinner), 12:00 PM - 3:00 PM (Lunch)",
+    ticketPrice: "S$199-399 per person",
+    budgetCategory: "luxury",
+    images: ["/placeholder.svg"],
+    coordinates: { lat: 1.2929, lng: 103.8547 },
+    highlights: ["Sky Dining", "Premium Service", "360° Views", "Multi-Course Meals", "Special Occasions"],
+    nearbyFood: ["1-Altitude", "Ku De Ta", "Lavo Singapore"]
+  },
+  {
+    id: "clarke-quay-river-cruise",
+    name: "Singapore River Cruise",
+    description: "Historic bumboat cruise along Singapore River with commentary and city lights.",
+    category: "events",
+    rating: 4.2,
+    reviewCount: 5643,
+    openingHours: "9:00 AM - 11:00 PM",
+    ticketPrice: "S$25 adults, S$15 children",
+    budgetCategory: "mid-range",
+    images: ["/placeholder.svg"],
+    coordinates: { lat: 1.2884, lng: 103.8467 },
+    highlights: ["Historic Commentary", "City Lights", "Photo Opportunities", "Cultural Heritage", "Relaxing Journey"],
+    nearbyFood: ["Jumbo Seafood", "Brewerkz", "Harry's Bar"]
+  },
+  {
+    id: "gardens-rhapsody-light-show",
+    name: "Garden Rhapsody Light Show",
+    description: "Free nightly light and music show at the iconic Supertree Grove.",
+    category: "events",
+    rating: 4.7,
+    reviewCount: 18765,
+    openingHours: "7:45 PM & 8:45 PM daily",
+    ticketPrice: "Free",
+    budgetCategory: "budget",
+    images: ["/placeholder.svg"],
+    coordinates: { lat: 1.2815, lng: 103.8636 },
+    highlights: ["Light Synchronization", "Music Performance", "Supertree Grove", "Family Entertainment", "Instagram Worthy"],
+    nearbyFood: ["Satay by the Bay", "Pollen Restaurant", "Food Opera"]
+  },
+  {
+    id: "spectra-light-show",
+    name: "Spectra Light & Water Show",
+    description: "Stunning multimedia light show at Marina Bay featuring water, lasers, and projections.",
+    category: "events",
+    rating: 4.5,
+    reviewCount: 12890,
+    openingHours: "8:00 PM & 9:00 PM (Fri-Sun: additional 10:00 PM show)",
+    ticketPrice: "Free",
+    budgetCategory: "budget",
+    images: ["/placeholder.svg"],
+    coordinates: { lat: 1.2863, lng: 103.8593 },
+    highlights: ["Water Projections", "Laser Show", "Marina Bay Views", "Music Synchronization", "Weekend Extended Shows"],
+    nearbyFood: ["Marina Bay Sands Restaurants", "The Fullerton Bay Hotel", "Clifford Pier"]
+  },
+  // More Cultural Sites
+  {
+    id: "peranakan-museum",
+    name: "Peranakan Museum",
+    description: "Dedicated museum showcasing the rich heritage and culture of the Peranakan people.",
+    category: "culture",
+    rating: 4.3,
+    reviewCount: 4567,
+    openingHours: "10:00 AM - 7:00 PM (Closed Mondays)",
+    ticketPrice: "S$10 adults, S$5 students",
+    budgetCategory: "budget",
+    images: ["/placeholder.svg"],
+    coordinates: { lat: 1.2957, lng: 103.8489 },
+    highlights: ["Peranakan Culture", "Traditional Artifacts", "Heritage Exhibitions", "Interactive Displays", "Cultural Workshops"],
+    nearbyFood: ["True Blue Cuisine", "Violet Oon Singapore", "National Kitchen by Violet Oon"]
+  },
+  {
+    id: "sri-mariamman-temple",
+    name: "Sri Mariamman Temple",
+    description: "Singapore's oldest Hindu temple featuring intricate South Indian architecture and cultural significance.",
+    category: "culture",
+    rating: 4.4,
+    reviewCount: 8932,
+    openingHours: "7:00 AM - 12:00 PM, 6:00 PM - 9:00 PM",
+    ticketPrice: "Free",
+    budgetCategory: "budget",
+    images: ["/placeholder.svg"],
+    coordinates: { lat: 1.2834, lng: 103.8451 },
+    highlights: ["Hindu Architecture", "Religious Ceremonies", "Cultural Heritage", "Historic Significance", "Photography"],
+    nearbyFood: ["Chinatown Complex", "Maxwell Food Centre", "Amoy Street Food Centre"]
+  },
+  // More Shopping
+  {
+    id: "bugis-street",
+    name: "Bugis Street Market",
+    description: "Famous street market offering affordable fashion, souvenirs, and local street food.",
+    category: "shopping",
+    rating: 4.1,
+    reviewCount: 15678,
+    openingHours: "11:00 AM - 11:00 PM",
+    ticketPrice: "Free entry, items vary",
+    budgetCategory: "budget",
+    images: ["/placeholder.svg"],
+    coordinates: { lat: 1.2993, lng: 103.8547 },
+    highlights: ["Street Fashion", "Souvenirs", "Bargain Shopping", "Local Culture", "Street Food"],
+    nearbyFood: ["Bugis+ Food Court", "Kwan Im Thong Hood Cho Temple Vegetarian", "Albert Centre Food Court"]
   }
 ];
 
@@ -375,6 +605,8 @@ export const getCategoryColor = (category: Attraction['category']) => {
       return 'bg-accent text-accent-foreground';
     case 'culture':
       return 'bg-muted text-muted-foreground';
+    case 'events':
+      return 'bg-destructive text-destructive-foreground';
     default:
       return 'bg-muted text-muted-foreground';
   }
