@@ -752,17 +752,23 @@ const Itinerary = () => {
                 </Card>
               )}
 
+
               {/* Day Schedule with Drag and Drop */}
               {daySchedules.length > 0 && (
                 <Card className="shadow-card">
                   <CardHeader>
                     <CardTitle className="flex items-center">
                       <Route className="h-5 w-5 mr-2" />
-                      Schedule Overview
+                      {daySchedules.length > 1 ? `Day ${selectedDay} Schedule` : 'Suggested Schedule'}
                     </CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      Drag attractions between days and time periods
-                    </p>
+                    {daySchedules.length > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        {daySchedules.find(d => d.day === selectedDay)?.date} • 
+                        {daySchedules.find(d => d.day === selectedDay)?.startTime} - 
+                        {daySchedules.find(d => d.day === selectedDay)?.endTime} • 
+                        {Math.ceil((daySchedules.find(d => d.day === selectedDay)?.totalDuration || 0) / 60)}h total
+                      </p>
+                    )}
                   </CardHeader>
                   <CardContent>
                     <DndContext
@@ -770,117 +776,105 @@ const Itinerary = () => {
                       collisionDetection={closestCenter}
                       onDragEnd={handleScheduleDragEnd}
                     >
-                      <div className="space-y-6">
-                        {daySchedules.map((daySchedule) => (
-                          <div key={daySchedule.day} className="border border-border rounded-lg p-4 bg-card">
-                            <div className="flex items-center justify-between mb-4">
-                              <h3 className="font-semibold text-lg">Day {daySchedule.day}</h3>
-                              <div className="text-sm text-muted-foreground">
-                                {daySchedule.date} • {daySchedule.startTime} - {daySchedule.endTime} • 
-                                {Math.ceil(daySchedule.totalDuration / 60)}h total
-                              </div>
-                            </div>
-                            
-                            <div className="space-y-4">
-                              {/* Morning Section */}
-                              <div className="space-y-2">
-                                <h4 className="font-medium text-sm text-muted-foreground flex items-center">
-                                  <div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>
-                                  Morning (9:00 - 12:00)
-                                </h4>
-                                <div>
-                                  <SortableContext 
-                                    items={daySchedule.items
-                                      .filter(item => parseInt(item.timeSlot.split(':')[0]) < 12)
-                                      .map(item => item.id)} 
-                                    strategy={verticalListSortingStrategy}
-                                  >
-                                    <div className="min-h-[80px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2">
-                                      {daySchedule.items
-                                        .filter(item => parseInt(item.timeSlot.split(':')[0]) < 12)
-                                        .map((item, index) => (
-                                          <SortableScheduleItem key={item.id} item={item} index={index} />
-                                        ))}
-                                      {daySchedule.items.filter(item => parseInt(item.timeSlot.split(':')[0]) < 12).length === 0 && (
-                                        <p className="text-muted-foreground text-xs text-center py-4">
-                                          No morning activities scheduled
-                                        </p>
-                                      )}
-                                    </div>
-                                  </SortableContext>
+                      {daySchedules.filter(daySchedule => daySchedule.day === selectedDay).map((daySchedule) => (
+                        <div key={daySchedule.day} className="space-y-4">
+                          {/* Morning Section */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-sm text-muted-foreground flex items-center">
+                              <div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>
+                              Morning (9:00 - 12:00)
+                            </h4>
+                            <div>
+                              <SortableContext 
+                                items={daySchedule.items
+                                  .filter(item => parseInt(item.timeSlot.split(':')[0]) < 12)
+                                  .map(item => item.id)} 
+                                strategy={verticalListSortingStrategy}
+                              >
+                                <div className="min-h-[80px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2">
+                                  {daySchedule.items
+                                    .filter(item => parseInt(item.timeSlot.split(':')[0]) < 12)
+                                    .map((item, index) => (
+                                      <SortableScheduleItem key={item.id} item={item} index={index} />
+                                    ))}
+                                  {daySchedule.items.filter(item => parseInt(item.timeSlot.split(':')[0]) < 12).length === 0 && (
+                                    <p className="text-muted-foreground text-xs text-center py-4">
+                                      No morning activities scheduled
+                                    </p>
+                                  )}
                                 </div>
-                              </div>
-
-                              {/* Afternoon Section */}
-                              <div className="space-y-2">
-                                <h4 className="font-medium text-sm text-muted-foreground flex items-center">
-                                  <div className="w-2 h-2 bg-orange-400 rounded-full mr-2"></div>
-                                  Afternoon (12:00 - 18:00)
-                                </h4>
-                                <div>
-                                  <SortableContext 
-                                    items={daySchedule.items
-                                      .filter(item => {
-                                        const hour = parseInt(item.timeSlot.split(':')[0]);
-                                        return hour >= 12 && hour < 18;
-                                      })
-                                      .map(item => item.id)} 
-                                    strategy={verticalListSortingStrategy}
-                                  >
-                                    <div className="min-h-[80px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2">
-                                      {daySchedule.items
-                                        .filter(item => {
-                                          const hour = parseInt(item.timeSlot.split(':')[0]);
-                                          return hour >= 12 && hour < 18;
-                                        })
-                                        .map((item, index) => (
-                                          <SortableScheduleItem key={item.id} item={item} index={index} />
-                                        ))}
-                                      {daySchedule.items.filter(item => {
-                                        const hour = parseInt(item.timeSlot.split(':')[0]);
-                                        return hour >= 12 && hour < 18;
-                                      }).length === 0 && (
-                                        <p className="text-muted-foreground text-xs text-center py-4">
-                                          No afternoon activities scheduled
-                                        </p>
-                                      )}
-                                    </div>
-                                  </SortableContext>
-                                </div>
-                              </div>
-
-                              {/* Evening Section */}
-                              <div className="space-y-2">
-                                <h4 className="font-medium text-sm text-muted-foreground flex items-center">
-                                  <div className="w-2 h-2 bg-purple-400 rounded-full mr-2"></div>
-                                  Evening (18:00+)
-                                </h4>
-                                <div>
-                                  <SortableContext 
-                                    items={daySchedule.items
-                                      .filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18)
-                                      .map(item => item.id)} 
-                                    strategy={verticalListSortingStrategy}
-                                  >
-                                    <div className="min-h-[80px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2">
-                                      {daySchedule.items
-                                        .filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18)
-                                        .map((item, index) => (
-                                          <SortableScheduleItem key={item.id} item={item} index={index} />
-                                        ))}
-                                      {daySchedule.items.filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18).length === 0 && (
-                                        <p className="text-muted-foreground text-xs text-center py-4">
-                                          No evening activities scheduled
-                                        </p>
-                                      )}
-                                    </div>
-                                  </SortableContext>
-                                </div>
-                              </div>
+                              </SortableContext>
                             </div>
                           </div>
-                        ))}
-                      </div>
+
+                          {/* Afternoon Section */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-sm text-muted-foreground flex items-center">
+                              <div className="w-2 h-2 bg-orange-400 rounded-full mr-2"></div>
+                              Afternoon (12:00 - 18:00)
+                            </h4>
+                            <div>
+                              <SortableContext 
+                                items={daySchedule.items
+                                  .filter(item => {
+                                    const hour = parseInt(item.timeSlot.split(':')[0]);
+                                    return hour >= 12 && hour < 18;
+                                  })
+                                  .map(item => item.id)} 
+                                strategy={verticalListSortingStrategy}
+                              >
+                                <div className="min-h-[80px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2">
+                                  {daySchedule.items
+                                    .filter(item => {
+                                      const hour = parseInt(item.timeSlot.split(':')[0]);
+                                      return hour >= 12 && hour < 18;
+                                    })
+                                    .map((item, index) => (
+                                      <SortableScheduleItem key={item.id} item={item} index={index} />
+                                    ))}
+                                  {daySchedule.items.filter(item => {
+                                    const hour = parseInt(item.timeSlot.split(':')[0]);
+                                    return hour >= 12 && hour < 18;
+                                  }).length === 0 && (
+                                    <p className="text-muted-foreground text-xs text-center py-4">
+                                      No afternoon activities scheduled
+                                    </p>
+                                  )}
+                                </div>
+                              </SortableContext>
+                            </div>
+                          </div>
+
+                          {/* Evening Section */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-sm text-muted-foreground flex items-center">
+                              <div className="w-2 h-2 bg-purple-400 rounded-full mr-2"></div>
+                              Evening (18:00+)
+                            </h4>
+                            <div>
+                              <SortableContext 
+                                items={daySchedule.items
+                                  .filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18)
+                                  .map(item => item.id)} 
+                                strategy={verticalListSortingStrategy}
+                              >
+                                <div className="min-h-[80px] border-2 border-dashed border-muted rounded-lg p-3 space-y-2">
+                                  {daySchedule.items
+                                    .filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18)
+                                    .map((item, index) => (
+                                      <SortableScheduleItem key={item.id} item={item} index={index} />
+                                    ))}
+                                  {daySchedule.items.filter(item => parseInt(item.timeSlot.split(':')[0]) >= 18).length === 0 && (
+                                    <p className="text-muted-foreground text-xs text-center py-4">
+                                      No evening activities scheduled
+                                    </p>
+                                  )}
+                                </div>
+                              </SortableContext>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </DndContext>
                   </CardContent>
                 </Card>
