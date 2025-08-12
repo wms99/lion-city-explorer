@@ -413,15 +413,20 @@ const ProfilePreferences = () => {
 
         {/* Show Overview or Form */}
         {showOverview ? renderOverview() : (
-          <Accordion type="single" value={`section-${currentStep}`} onValueChange={(value) => {
-            if (value) {
-              const stepNumber = parseInt(value.replace('section-', ''));
-              setCurrentStep(stepNumber);
-            }
-          }} className="space-y-4">
-            {/* Section 0: User Type Selection */}
+          <Accordion 
+            type="single" 
+            value={`section-${currentStep}`} 
+            onValueChange={(value) => {
+              if (value) {
+                const stepNumber = parseInt(value.replace('section-', ''));
+                setCurrentStep(stepNumber);
+              }
+            }} 
+            className="space-y-4"
+          >
+            {/* Section 0: User Type Selection - Always visible when no userType selected */}
             {!formData.userType && (
-              <AccordionItem value="section-0" className="border rounded-lg">
+              <AccordionItem value="section-0" className="border rounded-lg" data-state="open">
                 <AccordionTrigger 
                   className="px-6 hover:no-underline cursor-pointer"
                   onClick={() => setCurrentStep(0)}
@@ -485,7 +490,16 @@ const ProfilePreferences = () => {
                   </div>
                   {formData.userType && (
                     <Button 
-                      onClick={() => setCurrentStep(1)} 
+                      onClick={() => {
+                        setCurrentStep(1);
+                        // Small delay to ensure accordion updates properly
+                        setTimeout(() => {
+                          const nextSection = document.querySelector('[data-state="open"]');
+                          if (nextSection) {
+                            nextSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                          }
+                        }, 100);
+                      }} 
                       className="mt-6 w-full"
                     >
                       Continue as {formData.userType === "tourist" ? "Tourist" : "Local"}
@@ -495,7 +509,7 @@ const ProfilePreferences = () => {
               </AccordionItem>
             )}
 
-            {/* Section 1: Trip/Exploration Basics */}
+            {/* Section 1: Trip/Exploration Basics - Auto-expand when active */}
             {formData.userType && (
               <AccordionItem value="section-1" className="border rounded-lg">
                 <AccordionTrigger 
@@ -662,7 +676,15 @@ const ProfilePreferences = () => {
                     </div>
                   )}
                   <Button 
-                    onClick={() => setCurrentStep(2)} 
+                    onClick={() => {
+                      setCurrentStep(2);
+                      setTimeout(() => {
+                        const nextSection = document.querySelector('[data-state="open"]');
+                        if (nextSection) {
+                          nextSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                      }, 100);
+                    }} 
                     className="mt-6"
                   >
                     Next: Your Interests
@@ -673,7 +695,7 @@ const ProfilePreferences = () => {
 
             {/* Additional sections would continue here with the same pattern... */}
             {/* For brevity, I'll include just the key sections that were causing errors */}
-            {/* Section 2: Interests & Preferences */}
+            {/* Section 2: Interests & Preferences - Auto-expand when active */}
             {formData.userType && (
               <AccordionItem value="section-2" className="border rounded-lg">
                 <AccordionTrigger 
@@ -747,7 +769,15 @@ const ProfilePreferences = () => {
                     <Button variant="outline" onClick={() => setCurrentStep(1)}>
                       Previous
                     </Button>
-                    <Button onClick={() => setCurrentStep(3)}>
+                    <Button onClick={() => {
+                      setCurrentStep(3);
+                      setTimeout(() => {
+                        const nextSection = document.querySelector('[data-state="open"]');
+                        if (nextSection) {
+                          nextSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                      }, 100);
+                    }}>
                       Next: Budget & Dining
                     </Button>
                   </div>
@@ -755,7 +785,7 @@ const ProfilePreferences = () => {
               </AccordionItem>
             )}
 
-            {/* Section 3: Budget, Dining & Accessibility */}
+            {/* Section 3: Budget, Dining & Accessibility - Auto-expand when active */}
             {formData.userType && (
               <AccordionItem value="section-3" className="border rounded-lg">
                 <AccordionTrigger 
@@ -844,7 +874,16 @@ const ProfilePreferences = () => {
                     <Button variant="outline" onClick={() => setCurrentStep(2)}>
                       Previous
                     </Button>
-                    <Button onClick={() => setCurrentStep(formData.userType === "tourist" ? 4 : 3)}>
+                    <Button onClick={() => {
+                      const nextStep = formData.userType === "tourist" ? 4 : 3;
+                      setCurrentStep(nextStep);
+                      setTimeout(() => {
+                        const nextSection = document.querySelector('[data-state="open"]');
+                        if (nextSection) {
+                          nextSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                      }, 100);
+                    }}>
                       {formData.userType === "tourist" ? "Next: Transport & Preferences" : "Complete Profile"}
                     </Button>
                   </div>
