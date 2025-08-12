@@ -28,7 +28,7 @@ interface ItineraryItem {
 }
 
 interface TransportOption {
-  type: 'mrt' | 'bus' | 'taxi' | 'grab' | 'tada' | 'gojek' | 'private_hire' | 'walk' | 'public_transport';
+  type: 'mrt' | 'bus' | 'taxi' | 'grab' | 'tada' | 'gojek' | 'private_hire' | 'walk' | 'public_transport' | 'own_car';
   provider?: string;
   duration: string;
   cost: string;
@@ -39,6 +39,11 @@ interface TransportOption {
   features?: string[]; // Additional features like "Air-conditioned", "Door-to-door", etc.
 }
 
+interface ComfortChoice {
+  selectedOption: TransportOption | null;
+  availableOptions: TransportOption[];
+}
+
 interface RouteSegment {
   from: string;
   to: string;
@@ -47,6 +52,7 @@ interface RouteSegment {
   distance: number;
   transportOptions: TransportOption[];
   recommended: TransportOption;
+  comfortChoice?: ComfortChoice;
 }
 
 const Transport = () => {
@@ -58,6 +64,7 @@ const Transport = () => {
     comfort: RouteSegment[];
     speed: RouteSegment[];
   }>({ budget: [], comfort: [], speed: [] });
+  const [comfortChoices, setComfortChoices] = useState<{ [segmentIndex: number]: ComfortChoice }>({});
 
   useEffect(() => {
     const loadItinerary = () => {
@@ -266,6 +273,18 @@ const Transport = () => {
             realRouteData: driveRoute
           });
         }
+
+        // Own Car option
+        options.push({
+          type: 'own_car',
+          provider: 'Personal Vehicle',
+          duration: taxiTime,
+          cost: 'Parking & Fuel',
+          description: 'Drive Your Own Car',
+          steps: [`Drive from ${from} to ${to}`, `Find parking near destination`],
+          features: ['Personal convenience', 'No waiting time', 'Privacy', 'Storage space'],
+          realRouteData: driveRoute
+        });
       }
 
     } catch (error) {
@@ -383,7 +402,13 @@ const Transport = () => {
         toCoords: to.coordinates,
         distance,
         transportOptions,
-        recommended: transportOptions[0] // Default to first option
+        recommended: transportOptions[0], // Default to first option
+        comfortChoice: {
+          selectedOption: null,
+          availableOptions: transportOptions.filter(opt => 
+            ['taxi', 'grab', 'tada', 'gojek', 'private_hire', 'own_car'].includes(opt.type)
+          )
+        }
       });
     }
 
@@ -427,6 +452,7 @@ const Transport = () => {
       case 'tada':
       case 'gojek':
       case 'private_hire': return <Car className="h-4 w-4" />;
+      case 'own_car': return <Car className="h-4 w-4" />;
       case 'walk': return <Footprints className="h-4 w-4" />;
       default: return <Navigation className="h-4 w-4" />;
     }
@@ -442,6 +468,7 @@ const Transport = () => {
       case 'tada': return 'bg-purple-500';
       case 'gojek': return 'bg-orange-500';
       case 'private_hire': return 'bg-gray-700';
+      case 'own_car': return 'bg-blue-600';
       case 'walk': return 'bg-gray-500';
       default: return 'bg-gray-500';
     }
@@ -459,6 +486,16 @@ const Transport = () => {
       const time = parseInt(segment.recommended.duration);
       return total + time;
     }, 0);
+  };
+
+  const handleComfortChoice = (segmentIndex: number, option: TransportOption) => {
+    setComfortChoices(prev => ({
+      ...prev,
+      [segmentIndex]: {
+        selectedOption: option,
+        availableOptions: routes.comfort[segmentIndex]?.comfortChoice?.availableOptions || []
+      }
+    }));
   };
 
   if (savedItems.length === 0) {
@@ -619,65 +656,100 @@ const Transport = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {routes.comfort.map((segment, index) => (
-                  <div key={index} className="border border-border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-6 h-6 bg-secondary text-secondary-foreground rounded-full flex items-center justify-center text-xs font-medium">
-                          {index + 1}
-                        </div>
-                        <span className="font-medium">{segment.from}</span>
-                        <span className="text-muted-foreground">→</span>
-                        <span className="font-medium">{segment.to}</span>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {segment.distance.toFixed(1)} km
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-4 mb-2">
-                      <div className={`w-8 h-8 ${getTransportColor(segment.recommended.type)} rounded-lg flex items-center justify-center text-white`}>
-                        {getTransportIcon(segment.recommended.type)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium">{segment.recommended.description}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {segment.recommended.duration} • {segment.recommended.cost}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="ml-12 space-y-3">
-                      {/* Transport steps */}
-                      <div className="space-y-1">
-                        {segment.recommended.steps.map((step, stepIndex) => (
-                          <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
-                            <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
-                            <span>{step}</span>
+                {routes.comfort.map((segment, index) => {
+                  const currentChoice = comfortChoices[index];
+                  const displayOption = currentChoice?.selectedOption || segment.recommended;
+                  
+                  return (
+                    <div key={index} className="border border-border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-secondary text-secondary-foreground rounded-full flex items-center justify-center text-xs font-medium">
+                            {index + 1}
                           </div>
-                        ))}
+                          <span className="font-medium">{segment.from}</span>
+                          <span className="text-muted-foreground">→</span>
+                          <span className="font-medium">{segment.to}</span>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {segment.distance.toFixed(1)} km
+                        </div>
+                      </div>
+
+                      {/* Transport Option Selector */}
+                      {segment.comfortChoice && segment.comfortChoice.availableOptions.length > 0 && (
+                        <div className="mb-4">
+                          <h4 className="text-sm font-medium mb-2">Choose your transport option:</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {segment.comfortChoice.availableOptions.map((option, optionIndex) => (
+                              <Button
+                                key={optionIndex}
+                                variant={displayOption.type === option.type && displayOption.provider === option.provider ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => handleComfortChoice(index, option)}
+                                className="h-auto p-3 flex flex-col items-start space-y-1"
+                              >
+                                <div className="flex items-center space-x-2 w-full">
+                                  <div className={`w-5 h-5 ${getTransportColor(option.type)} rounded flex items-center justify-center text-white`}>
+                                    {getTransportIcon(option.type)}
+                                  </div>
+                                  <span className="text-xs font-medium truncate">{option.description}</span>
+                                </div>
+                                <div className="text-xs text-left w-full">
+                                  <div className="text-muted-foreground">{option.duration}</div>
+                                  <div className="font-medium">{option.cost}</div>
+                                </div>
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Selected Option Display */}
+                      <div className="flex items-center space-x-4 mb-2">
+                        <div className={`w-8 h-8 ${getTransportColor(displayOption.type)} rounded-lg flex items-center justify-center text-white`}>
+                          {getTransportIcon(displayOption.type)}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">{displayOption.description}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {displayOption.duration} • {displayOption.cost}
+                          </div>
+                        </div>
                       </div>
                       
-                      {/* Transport features */}
-                      {segment.recommended.features && segment.recommended.features.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {segment.recommended.features.map((feature, featureIndex) => (
-                            <Badge key={featureIndex} variant="outline" className="text-xs">
-                              {feature}
-                            </Badge>
+                      <div className="ml-12 space-y-3">
+                        {/* Transport steps */}
+                        <div className="space-y-1">
+                          {displayOption.steps.map((step, stepIndex) => (
+                            <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
+                              <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
+                              <span>{step}</span>
+                            </div>
                           ))}
                         </div>
-                      )}
-                      
-                      {/* Provider information */}
-                      {segment.recommended.provider && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Provider: {segment.recommended.provider}
-                        </div>
-                      )}
+                        
+                        {/* Transport features */}
+                        {displayOption.features && displayOption.features.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {displayOption.features.map((feature, featureIndex) => (
+                              <Badge key={featureIndex} variant="outline" className="text-xs">
+                                {feature}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Provider information */}
+                        {displayOption.provider && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Provider: {displayOption.provider}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           </TabsContent>
