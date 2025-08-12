@@ -436,69 +436,8 @@ const Itinerary = () => {
           </Card>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Saved Attractions */}
-            <div className="lg:col-span-2 space-y-4">
-              <Card className="shadow-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <MapPin className="h-5 w-5 mr-2" />
-                    Your Attractions ({savedItems.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {savedItems.map((item) => {
-                    const attraction = getAttractionDetails(item.id);
-                    if (!attraction) return null;
-                    
-                    return (
-                      <div key={item.id} className="flex items-start space-x-4 p-4 border border-border rounded-lg hover:shadow-sm transition-smooth">
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-semibold text-lg">{attraction.name}</h4>
-                            <Button
-                              onClick={() => removeFromItinerary(item.id)}
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive h-8 w-8 p-0"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          
-                          <div className="flex items-center space-x-2 mb-2">
-                            <Badge className={getCategoryColor(attraction.category)}>
-                              {attraction.category}
-                            </Badge>
-                            <div className="flex items-center space-x-1">
-                              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                              <span className="text-sm font-medium">{attraction.rating}</span>
-                            </div>
-                          </div>
-                          
-                          <p className="text-sm text-muted-foreground mb-3">
-                            {attraction.description}
-                          </p>
-                          
-                          <div className="flex items-center space-x-4 text-sm">
-                            <div className="flex items-center space-x-1">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              <span>{attraction.openingHours}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <DollarSign className="h-4 w-4 text-muted-foreground" />
-                              <span>{attraction.ticketPrice}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            </div>
-
             {/* Schedule & Recommendations */}
-            <div className="space-y-4">
+            <div className="lg:col-span-2 space-y-4">
               {/* Day Filter */}
               {daySchedules.length > 1 && (
                 <Card className="shadow-card">
@@ -576,6 +515,68 @@ const Itinerary = () => {
                   </CardContent>
                 </Card>
               )}
+            </div>
+
+            {/* Your Attractions */}
+            <div className="space-y-4">
+              <Card className="shadow-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <MapPin className="h-5 w-5 mr-2" />
+                    Your Attractions ({savedItems.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {savedItems.map((item) => {
+                    const attraction = getAttractionDetails(item.id);
+                    if (!attraction) return null;
+                    
+                    return (
+                      <div key={item.id} className="flex items-start space-x-3 p-3 border border-border rounded-lg hover:shadow-sm transition-smooth">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-semibold text-base truncate pr-2">{attraction.name}</h4>
+                            <Button
+                              onClick={() => removeFromItinerary(item.id)}
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0 flex-shrink-0"
+                              title="Remove from itinerary"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2 mb-2">
+                            <Badge className={getCategoryColor(attraction.category)}>
+                              {attraction.category}
+                            </Badge>
+                            <div className="flex items-center space-x-1">
+                              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                              <span className="text-xs font-medium">{attraction.rating}</span>
+                            </div>
+                          </div>
+                          
+                          <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                            {attraction.description}
+                          </p>
+                          
+                          <div className="space-y-1 text-xs">
+                            <div className="flex items-center space-x-1">
+                              <Clock className="h-3 w-3 text-muted-foreground" />
+                              <span className="truncate">{attraction.openingHours}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <DollarSign className="h-3 w-3 text-muted-foreground" />
+                              <span className="truncate">{attraction.ticketPrice}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
 
               {/* Smart Recommendations */}
               <Card className="shadow-card">
