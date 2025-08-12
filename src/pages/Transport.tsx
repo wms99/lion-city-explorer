@@ -96,7 +96,8 @@ const Transport = () => {
       
       if (attractionDetails.length >= 2) {
         generateRoutes(attractionDetails).then(() => {
-          generateDayRoutes(attractionDetails);
+          // Generate day routes after main routes are created
+          setTimeout(() => generateDayRoutes(attractionDetails), 100);
         }).catch(console.error);
       }
     };
@@ -431,33 +432,42 @@ const Transport = () => {
     }
 
     // Generate different route optimizations
+    const budgetRoutes = segments.map(segment => ({
+      ...segment,
+      recommended: segment.transportOptions.reduce((cheapest, current) => {
+        const cheapestCost = parseFloat(cheapest.cost.replace(/[^0-9.]/g, '') || '999');
+        const currentCost = parseFloat(current.cost.replace(/[^0-9.]/g, '') || '999');
+        return currentCost < cheapestCost ? current : cheapest;
+      })
+    }));
+
+    const comfortRoutes = segments.map(segment => ({
+      ...segment,
+      recommended: segment.distance > 1.0 
+        ? segment.transportOptions.find(opt => opt.type === 'grab' || opt.type === 'tada') || 
+          segment.transportOptions.find(opt => opt.type === 'taxi') ||
+          segment.transportOptions.find(opt => opt.type === 'public_transport') || 
+          segment.transportOptions[0]
+        : segment.transportOptions.find(opt => opt.type === 'public_transport' || opt.type === 'mrt') || segment.transportOptions[0]
+    }));
+
+    const speedRoutes = segments.map(segment => ({
+      ...segment,
+      recommended: segment.transportOptions.reduce((fastest, current) => {
+        const fastestTime = parseInt(fastest.duration);
+        const currentTime = parseInt(current.duration);
+        return currentTime < fastestTime ? current : fastest;
+      })
+    }));
+
     setRoutes({
-      budget: segments.map(segment => ({
-        ...segment,
-        recommended: segment.transportOptions.reduce((cheapest, current) => {
-          const cheapestCost = parseFloat(cheapest.cost.replace(/[^0-9.]/g, '') || '999');
-          const currentCost = parseFloat(current.cost.replace(/[^0-9.]/g, '') || '999');
-          return currentCost < cheapestCost ? current : cheapest;
-        })
-      })),
-      comfort: segments.map(segment => ({
-        ...segment,
-        recommended: segment.distance > 1.0 
-          ? segment.transportOptions.find(opt => opt.type === 'grab' || opt.type === 'tada') || 
-            segment.transportOptions.find(opt => opt.type === 'taxi') ||
-            segment.transportOptions.find(opt => opt.type === 'public_transport') || 
-            segment.transportOptions[0]
-          : segment.transportOptions.find(opt => opt.type === 'public_transport' || opt.type === 'mrt') || segment.transportOptions[0]
-      })),
-      speed: segments.map(segment => ({
-        ...segment,
-        recommended: segment.transportOptions.reduce((fastest, current) => {
-          const fastestTime = parseInt(fastest.duration);
-          const currentTime = parseInt(current.duration);
-          return currentTime < fastestTime ? current : fastest;
-        })
-      }))
+      budget: budgetRoutes,
+      comfort: comfortRoutes,
+      speed: speedRoutes
     });
+
+    // Generate day routes after setting main routes
+    return Promise.resolve();
   };
 
   const handleComfortChoice = (segmentIndex: number, option: TransportOption) => {
@@ -529,51 +539,58 @@ const Transport = () => {
   };
 
   const generateDayRoutes = (attractionList: Attraction[]) => {
-    // Get itinerary data to understand day groupings
-    const savedItinerary = JSON.parse(localStorage.getItem('singapore-itinerary') || '[]');
+    console.log('Generating day routes for', attractionList.length, 'attractions');
     
-    // Simple day splitting logic based on attractions count (max 3-4 attractions per day)
-    const maxAttractionsPerDay = 4;
+    // Simple day splitting logic - split into days of max 3-4 attractions each
+    const maxAttractionsPerDay = 3;
     const days: DayRoute[] = [];
-    
-    let currentDayAttractions: Attraction[] = [];
-    let dayNumber = 1;
     const today = new Date();
     
-    for (let i = 0; i < attractionList.length; i++) {
-      currentDayAttractions.push(attractionList[i]);
-      
-      // Check if we should end this day
-      const shouldEndDay = currentDayAttractions.length >= maxAttractionsPerDay || i === attractionList.length - 1;
-      
-      if (shouldEndDay && currentDayAttractions.length > 1) {
-        // Generate segments for this day
-        const daySegments: RouteSegment[] = [];
-        
-        for (let j = 0; j < currentDayAttractions.length - 1; j++) {
-          const segmentIndex = attractionList.findIndex(a => a.id === currentDayAttractions[j].id);
-          if (segmentIndex !== -1 && segmentIndex < routes.comfort.length) {
-            daySegments.push(routes.comfort[segmentIndex]);
-          }
-        }
-        
-        if (daySegments.length > 0) {
-          const dayDate = new Date(today.getTime() + (dayNumber - 1) * 24 * 60 * 60 * 1000);
-          days.push({
-            day: dayNumber,
-            date: dayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
-            segments: daySegments
-          });
-          dayNumber++;
-        }
-        
-        // Start new day with current attraction as first attraction
-        currentDayAttractions = i < attractionList.length - 1 ? [attractionList[i]] : [];
+    // Split attractions into day groups
+    const dayGroups: Attraction[][] = [];
+    for (let i = 0; i < attractionList.length; i += maxAttractionsPerDay) {
+      const dayGroup = attractionList.slice(i, Math.min(i + maxAttractionsPerDay, attractionList.length));
+      if (dayGroup.length >= 2) { // Need at least 2 attractions to create transport routes
+        dayGroups.push(dayGroup);
       }
     }
     
+    console.log('Day groups created:', dayGroups.length);
+    
+    // Create day routes for each group
+    dayGroups.forEach((dayAttractions, dayIndex) => {
+      const daySegments: RouteSegment[] = [];
+      
+      // Create segments for consecutive attractions in this day
+      for (let j = 0; j < dayAttractions.length - 1; j++) {
+        const fromAttraction = dayAttractions[j];
+        const toAttraction = dayAttractions[j + 1];
+        
+        // Find the corresponding segment in the main routes
+        const segmentIndex = routes.comfort.findIndex(segment => 
+          segment.from === fromAttraction.name && segment.to === toAttraction.name
+        );
+        
+        if (segmentIndex !== -1) {
+          daySegments.push(routes.comfort[segmentIndex]);
+        }
+      }
+      
+      if (daySegments.length > 0) {
+        const dayDate = new Date(today.getTime() + dayIndex * 24 * 60 * 60 * 1000);
+        days.push({
+          day: dayIndex + 1,
+          date: dayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+          segments: daySegments
+        });
+      }
+    });
+    
+    console.log('Generated day routes:', days);
     setDayRoutes(days);
-    if (days.length > 0 && !selectedDay) {
+    
+    // Set selected day to 1 if we have multiple days
+    if (days.length > 0) {
       setSelectedDay(1);
     }
   };
