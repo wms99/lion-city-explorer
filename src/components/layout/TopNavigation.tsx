@@ -1,4 +1,4 @@
-import { Home, MapPin, Calendar, Bus, Settings } from "lucide-react";
+import { Home, MapPin, Calendar, Bus, Settings, User } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -21,6 +21,7 @@ export function TopNavigation() {
     { title: "Itinerary", url: "/itinerary", icon: Calendar },
     { title: "Transport", url: "/transport", icon: Bus },
     { title: "Settings", url: "/settings", icon: Settings },
+    { title: "Profile", url: "/profile-preferences", icon: User },
   ];
 
   const isActive = (path: string) => currentPath === path;
