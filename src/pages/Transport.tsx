@@ -63,6 +63,12 @@ interface RouteSegment {
   comfortChoice?: ComfortChoice;
 }
 
+interface DayRoute {
+  day: number;
+  date: string;
+  segments: RouteSegment[];
+}
+
 const Transport = () => {
   const { t } = useTranslation();
   const [savedItems, setSavedItems] = useState<ItineraryItem[]>([]);
@@ -73,6 +79,8 @@ const Transport = () => {
     speed: RouteSegment[];
   }>({ budget: [], comfort: [], speed: [] });
   const [comfortChoices, setComfortChoices] = useState<{ [segmentIndex: number]: ComfortChoice }>({});
+  const [dayRoutes, setDayRoutes] = useState<DayRoute[]>([]);
+  const [selectedDay, setSelectedDay] = useState<number>(1);
 
   useEffect(() => {
     const loadItinerary = () => {
@@ -87,7 +95,9 @@ const Transport = () => {
       setAttractions(attractionDetails);
       
       if (attractionDetails.length >= 2) {
-        generateRoutes(attractionDetails).catch(console.error);
+        generateRoutes(attractionDetails).then(() => {
+          generateDayRoutes(attractionDetails);
+        }).catch(console.error);
       }
     };
 
@@ -450,6 +460,16 @@ const Transport = () => {
     });
   };
 
+  const handleComfortChoice = (segmentIndex: number, option: TransportOption) => {
+    setComfortChoices(prev => ({
+      ...prev,
+      [segmentIndex]: {
+        selectedOption: option,
+        availableOptions: routes.comfort[segmentIndex]?.comfortChoice?.availableOptions || []
+      }
+    }));
+  };
+
   const getTransportIcon = (type: TransportOption['type']) => {
     switch (type) {
       case 'mrt': return <Train className="h-4 w-4" />;
@@ -482,28 +502,80 @@ const Transport = () => {
     }
   };
 
-  const calculateTotalCost = (segments: RouteSegment[]) => {
-    return segments.reduce((total, segment) => {
-      const cost = parseFloat(segment.recommended.cost.replace(/[^0-9.]/g, '') || '0');
+  const calculateTotalCost = (segments: RouteSegment[], useComfortChoices: boolean = false) => {
+    return segments.reduce((total, segment, index) => {
+      let option = segment.recommended;
+      
+      if (useComfortChoices && comfortChoices[index]?.selectedOption) {
+        option = comfortChoices[index].selectedOption;
+      }
+      
+      const cost = parseFloat(option.cost.replace(/[^0-9.]/g, '') || '0');
       return total + cost;
     }, 0);
   };
 
-  const calculateTotalTime = (segments: RouteSegment[]) => {
-    return segments.reduce((total, segment) => {
-      const time = parseInt(segment.recommended.duration);
+  const calculateTotalTime = (segments: RouteSegment[], useComfortChoices: boolean = false) => {
+    return segments.reduce((total, segment, index) => {
+      let option = segment.recommended;
+      
+      if (useComfortChoices && comfortChoices[index]?.selectedOption) {
+        option = comfortChoices[index].selectedOption;
+      }
+      
+      const time = parseInt(option.duration);
       return total + time;
     }, 0);
   };
 
-  const handleComfortChoice = (segmentIndex: number, option: TransportOption) => {
-    setComfortChoices(prev => ({
-      ...prev,
-      [segmentIndex]: {
-        selectedOption: option,
-        availableOptions: routes.comfort[segmentIndex]?.comfortChoice?.availableOptions || []
+  const generateDayRoutes = (attractionList: Attraction[]) => {
+    // Get itinerary data to understand day groupings
+    const savedItinerary = JSON.parse(localStorage.getItem('singapore-itinerary') || '[]');
+    
+    // Simple day splitting logic based on attractions count (max 3-4 attractions per day)
+    const maxAttractionsPerDay = 4;
+    const days: DayRoute[] = [];
+    
+    let currentDayAttractions: Attraction[] = [];
+    let dayNumber = 1;
+    const today = new Date();
+    
+    for (let i = 0; i < attractionList.length; i++) {
+      currentDayAttractions.push(attractionList[i]);
+      
+      // Check if we should end this day
+      const shouldEndDay = currentDayAttractions.length >= maxAttractionsPerDay || i === attractionList.length - 1;
+      
+      if (shouldEndDay && currentDayAttractions.length > 1) {
+        // Generate segments for this day
+        const daySegments: RouteSegment[] = [];
+        
+        for (let j = 0; j < currentDayAttractions.length - 1; j++) {
+          const segmentIndex = attractionList.findIndex(a => a.id === currentDayAttractions[j].id);
+          if (segmentIndex !== -1 && segmentIndex < routes.comfort.length) {
+            daySegments.push(routes.comfort[segmentIndex]);
+          }
+        }
+        
+        if (daySegments.length > 0) {
+          const dayDate = new Date(today.getTime() + (dayNumber - 1) * 24 * 60 * 60 * 1000);
+          days.push({
+            day: dayNumber,
+            date: dayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+            segments: daySegments
+          });
+          dayNumber++;
+        }
+        
+        // Start new day with current attraction as first attraction
+        currentDayAttractions = i < attractionList.length - 1 ? [attractionList[i]] : [];
       }
-    }));
+    }
+    
+    setDayRoutes(days);
+    if (days.length > 0 && !selectedDay) {
+      setSelectedDay(1);
+    }
   };
 
   if (savedItems.length === 0) {
@@ -654,17 +726,39 @@ const Transport = () => {
                   <div className="flex items-center space-x-4 text-sm">
                     <div className="flex items-center space-x-1">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span>{calculateTotalTime(routes.comfort)} min total</span>
+                      <span>{dayRoutes.length > 0 ? calculateTotalTime(dayRoutes.find(d => d.day === selectedDay)?.segments || [], true) : calculateTotalTime(routes.comfort, true)} min total</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <span>~S${calculateTotalCost(routes.comfort).toFixed(2)}</span>
+                      <span>~S${dayRoutes.length > 0 ? calculateTotalCost(dayRoutes.find(d => d.day === selectedDay)?.segments || [], true).toFixed(2) : calculateTotalCost(routes.comfort, true).toFixed(2)}</span>
                     </div>
                   </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {routes.comfort.map((segment, index) => {
+                {/* Day Filter */}
+                {dayRoutes.length > 1 && (
+                  <div className="mb-6">
+                    <h4 className="text-sm font-medium mb-3">Select Day</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {dayRoutes.map((day) => (
+                        <Button
+                          key={day.day}
+                          variant={selectedDay === day.day ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedDay(day.day)}
+                          className="flex flex-col h-auto py-2 px-3"
+                        >
+                          <span className="font-medium">Day {day.day}</span>
+                          <span className="text-xs opacity-75">{day.date}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Transport Routes */}
+                {(dayRoutes.length > 0 ? (dayRoutes.find(d => d.day === selectedDay)?.segments || []) : routes.comfort).map((segment, index) => {
                   const currentChoice = comfortChoices[index];
                   const displayOption = currentChoice?.selectedOption || segment.recommended;
                   
@@ -693,7 +787,13 @@ const Transport = () => {
                               const option = segment.comfortChoice?.availableOptions.find(opt => 
                                 (opt.type + (opt.provider || '')) === value
                               );
-                              if (option) handleComfortChoice(index, option);
+                              if (option) {
+                                // Find the actual segment index in the full routes array
+                                const actualIndex = routes.comfort.findIndex(r => r.from === segment.from && r.to === segment.to);
+                                if (actualIndex !== -1) {
+                                  handleComfortChoice(actualIndex, option);
+                                }
+                              }
                             }}
                           >
                             <SelectTrigger className="w-full">
