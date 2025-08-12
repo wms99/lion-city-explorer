@@ -40,41 +40,25 @@ const Index = () => {
       >
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center text-white space-y-4 px-4">
-            {showNameInput ? (
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 max-w-md mx-auto">
-                <h2 className="text-xl font-semibold mb-4">What's your name?</h2>
-                <div className="flex space-x-2">
-                  <Input
-                    type="text"
-                    placeholder="Enter your name"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    className="bg-white/20 border-white/30 text-white placeholder:text-white/70"
-                    onKeyPress={(e) => e.key === 'Enter' && handleNameSave()}
-                  />
-                  <Button onClick={handleNameSave} className="bg-gradient-sunrise border-0">
-                    Save
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <h1 className="text-4xl md:text-6xl font-bold mb-4 animate-fade-in">
-                  {userName ? `Welcome, ${userName}!` : "Welcome to Singapore!"}
-                </h1>
-                <p className="text-xl md:text-2xl text-white/90 animate-fade-in">
-                  Discover the Lion City with your personal travel companion
-                </p>
-                <Button 
-                  onClick={() => setShowNameInput(true)}
-                  variant="outline"
-                  className="bg-white/10 border-white/30 text-white hover:bg-white/20 mt-4"
-                >
-                  Change Name
-                </Button>
-              </>
-            )}
+          <div className="text-center text-white space-y-6 px-4">
+            <h1 className="text-4xl md:text-6xl font-bold mb-4 animate-fade-in">
+              Welcome to Singapore!
+            </h1>
+            <p className="text-xl md:text-2xl text-white/90 animate-fade-in mb-8">
+              Discover the Lion City with your personal travel companion
+            </p>
+            <div className="space-y-4">
+              <Button 
+                onClick={() => navigate('/profile-preferences')}
+                size="lg"
+                className="bg-gradient-primary hover:bg-gradient-primary/90 text-white border-0 rounded-2xl px-8 py-4 text-lg font-semibold shadow-elegant hover:shadow-glow transition-smooth transform hover:scale-105"
+              >
+                Get Started
+              </Button>
+              <p className="text-white/80 text-sm">
+                Plan your perfect Singapore trip
+              </p>
+            </div>
           </div>
         </div>
       </div>

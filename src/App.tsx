@@ -9,6 +9,7 @@ import TouristSpots from "./pages/TouristSpots";
 import Itinerary from "./pages/Itinerary";
 import Transport from "./pages/Transport";
 import Settings from "./pages/Settings";
+import ProfilePreferences from "./pages/ProfilePreferences";
 import { AppLayout } from "./components/layout/AppLayout";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
         <AppLayout>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/profile-preferences" element={<ProfilePreferences />} />
             <Route path="/tourist-spots" element={<TouristSpots />} />
             <Route path="/itinerary" element={<Itinerary />} />
             <Route path="/transport" element={<Transport />} />
