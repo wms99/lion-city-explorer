@@ -438,6 +438,39 @@ const Itinerary = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Schedule & Recommendations */}
             <div className="lg:col-span-2 space-y-4">
+              {/* Itinerary Overview */}
+              <Card className="shadow-card">
+                <CardHeader>
+                  <CardTitle className="text-lg">Itinerary Overview</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <div className="text-2xl font-bold text-primary">{savedItems.length}</div>
+                      <div className="text-xs text-muted-foreground">Total Attractions</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-secondary">
+                        {(() => {
+                          const totalMinutes = savedItems.reduce((total, item) => {
+                            const attraction = getAttractionDetails(item.id);
+                            return total + (attraction ? getAttractionDuration(attraction) : 90);
+                          }, 0);
+                          const hours = Math.floor(totalMinutes / 60);
+                          const minutes = totalMinutes % 60;
+                          return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+                        })()}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Est. Duration</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-accent">{daySchedules.length}</div>
+                      <div className="text-xs text-muted-foreground">Days Planned</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Day Filter */}
               {daySchedules.length > 1 && (
                 <Card className="shadow-card">
@@ -516,38 +549,6 @@ const Itinerary = () => {
                 </Card>
               )}
 
-              {/* Quick Stats */}
-              <Card className="shadow-card">
-                <CardHeader>
-                  <CardTitle className="text-lg">Itinerary Overview</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <div className="text-2xl font-bold text-primary">{savedItems.length}</div>
-                      <div className="text-xs text-muted-foreground">Total Attractions</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-secondary">
-                        {(() => {
-                          const totalMinutes = savedItems.reduce((total, item) => {
-                            const attraction = getAttractionDetails(item.id);
-                            return total + (attraction ? getAttractionDuration(attraction) : 90);
-                          }, 0);
-                          const hours = Math.floor(totalMinutes / 60);
-                          const minutes = totalMinutes % 60;
-                          return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-                        })()}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Est. Duration</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-accent">{daySchedules.length}</div>
-                      <div className="text-xs text-muted-foreground">Days Planned</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
 
             {/* Your Attractions */}
