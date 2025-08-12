@@ -199,12 +199,17 @@ const ProfilePreferences = () => {
         </div>
 
         {/* Form Sections */}
-        <Accordion type="single" value={`section-${currentStep}`} className="space-y-4">
+        <Accordion type="single" value={`section-${currentStep}`} onValueChange={(value) => {
+          if (value) {
+            const stepNumber = parseInt(value.replace('section-', ''));
+            setCurrentStep(stepNumber);
+          }
+        }} className="space-y-4">
           {/* Section 0: User Type Selection */}
           {!formData.userType && (
             <AccordionItem value="section-0" className="border rounded-lg">
               <AccordionTrigger 
-                className="px-6 hover:no-underline"
+                className="px-6 hover:no-underline cursor-pointer"
                 onClick={() => setCurrentStep(0)}
               >
                 <div className="flex items-center gap-3">
@@ -212,6 +217,11 @@ const ProfilePreferences = () => {
                     1
                   </div>
                   <h3 className="text-lg font-semibold">I am a...</h3>
+                  {formData.userType && (
+                    <span className="text-sm text-muted-foreground ml-2">
+                      ({formData.userType === "tourist" ? "Tourist" : "Local"})
+                    </span>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
@@ -275,7 +285,7 @@ const ProfilePreferences = () => {
           {formData.userType && (
             <AccordionItem value="section-1" className="border rounded-lg">
               <AccordionTrigger 
-                className="px-6 hover:no-underline"
+                className="px-6 hover:no-underline cursor-pointer"
                 onClick={() => setCurrentStep(1)}
               >
                 <div className="flex items-center gap-3">
@@ -288,6 +298,9 @@ const ProfilePreferences = () => {
                   <h3 className="text-lg font-semibold">
                     {formData.userType === "tourist" ? "Trip Basics" : "Exploration Basics"}
                   </h3>
+                  {currentStep > 1 && (
+                    <span className="text-sm text-green-600">✓ Completed</span>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
@@ -448,7 +461,7 @@ const ProfilePreferences = () => {
           {formData.userType && (
             <AccordionItem value="section-2" className="border rounded-lg">
               <AccordionTrigger 
-                className="px-6 hover:no-underline"
+                className="px-6 hover:no-underline cursor-pointer"
                 onClick={() => setCurrentStep(2)}
               >
                 <div className="flex items-center gap-3">
@@ -459,6 +472,9 @@ const ProfilePreferences = () => {
                     3
                   </div>
                   <h3 className="text-lg font-semibold">Your Interests</h3>
+                  {currentStep > 2 && (
+                    <span className="text-sm text-green-600">✓ Completed</span>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
@@ -527,7 +543,7 @@ const ProfilePreferences = () => {
           {formData.userType && (
             <AccordionItem value="section-3" className="border rounded-lg">
               <AccordionTrigger 
-                className="px-6 hover:no-underline"
+                className="px-6 hover:no-underline cursor-pointer"
                 onClick={() => setCurrentStep(3)}
               >
                 <div className="flex items-center gap-3">
@@ -538,6 +554,9 @@ const ProfilePreferences = () => {
                     4
                   </div>
                   <h3 className="text-lg font-semibold">Budget & Dining</h3>
+                  {currentStep > 3 && (
+                    <span className="text-sm text-green-600">✓ Completed</span>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
@@ -621,7 +640,7 @@ const ProfilePreferences = () => {
           {formData.userType === "tourist" && (
             <AccordionItem value="section-4" className="border rounded-lg">
               <AccordionTrigger 
-                className="px-6 hover:no-underline"
+                className="px-6 hover:no-underline cursor-pointer"
                 onClick={() => setCurrentStep(4)}
               >
                 <div className="flex items-center gap-3">
@@ -632,6 +651,9 @@ const ProfilePreferences = () => {
                     5
                   </div>
                   <h3 className="text-lg font-semibold">Transport & Final Preferences</h3>
+                  {currentStep > 4 && (
+                    <span className="text-sm text-green-600">✓ Completed</span>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
@@ -734,7 +756,7 @@ const ProfilePreferences = () => {
           {formData.userType === "local" && currentStep >= 3 && (
             <AccordionItem value="section-3" className="border rounded-lg">
               <AccordionTrigger 
-                className="px-6 hover:no-underline"
+                className="px-6 hover:no-underline cursor-pointer"
                 onClick={() => setCurrentStep(3)}
               >
                 <div className="flex items-center gap-3">
@@ -745,6 +767,9 @@ const ProfilePreferences = () => {
                     4
                   </div>
                   <h3 className="text-lg font-semibold">Discovery Preferences</h3>
+                  {currentStep > 3 && formData.userType === "local" && (
+                    <span className="text-sm text-green-600">✓ Completed</span>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
