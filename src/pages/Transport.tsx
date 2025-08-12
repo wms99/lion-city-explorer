@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { 
   Bus, 
   Train, 
   Car, 
@@ -15,7 +22,8 @@ import {
   Navigation,
   Wallet,
   Footprints,
-  Zap
+  Zap,
+  ChevronDown
 } from "lucide-react";
 import { singaporeAttractions, type Attraction } from "@/data/attractions";
 import { oneMapService } from "@/services/oneMapService";
@@ -661,89 +669,94 @@ const Transport = () => {
                   const displayOption = currentChoice?.selectedOption || segment.recommended;
                   
                   return (
-                    <div key={index} className="border border-border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-6 h-6 bg-secondary text-secondary-foreground rounded-full flex items-center justify-center text-xs font-medium">
+                    <div key={index} className="border border-border rounded-lg p-4 space-y-4">
+                      {/* Route Header */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-secondary text-secondary-foreground rounded-lg flex items-center justify-center text-sm font-medium">
                             {index + 1}
                           </div>
-                          <span className="font-medium">{segment.from}</span>
-                          <span className="text-muted-foreground">→</span>
-                          <span className="font-medium">{segment.to}</span>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {segment.distance.toFixed(1)} km
+                          <div>
+                            <div className="font-medium text-base">{segment.from} → {segment.to}</div>
+                            <div className="text-sm text-muted-foreground">{segment.distance.toFixed(1)} km</div>
+                          </div>
                         </div>
                       </div>
 
                       {/* Transport Option Selector */}
                       {segment.comfortChoice && segment.comfortChoice.availableOptions.length > 0 && (
-                        <div className="mb-4">
-                          <h4 className="text-sm font-medium mb-2">Choose your transport option:</h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                            {segment.comfortChoice.availableOptions.map((option, optionIndex) => (
-                              <Button
-                                key={optionIndex}
-                                variant={displayOption.type === option.type && displayOption.provider === option.provider ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => handleComfortChoice(index, option)}
-                                className="h-auto p-3 flex flex-col items-start space-y-1"
-                              >
-                                <div className="flex items-center space-x-2 w-full">
-                                  <div className={`w-5 h-5 ${getTransportColor(option.type)} rounded flex items-center justify-center text-white`}>
-                                    {getTransportIcon(option.type)}
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Choose transport:</label>
+                          <Select 
+                            value={displayOption.type + (displayOption.provider || '')} 
+                            onValueChange={(value) => {
+                              const option = segment.comfortChoice?.availableOptions.find(opt => 
+                                (opt.type + (opt.provider || '')) === value
+                              );
+                              if (option) handleComfortChoice(index, option);
+                            }}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select transport option" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background border shadow-lg z-50">
+                              {segment.comfortChoice.availableOptions.map((option, optionIndex) => (
+                                <SelectItem 
+                                  key={optionIndex} 
+                                  value={option.type + (option.provider || '')}
+                                  className="cursor-pointer hover:bg-accent"
+                                >
+                                  <div className="flex items-center justify-between w-full">
+                                    <div className="flex items-center space-x-3">
+                                      <div className={`w-5 h-5 ${getTransportColor(option.type)} rounded flex items-center justify-center text-white`}>
+                                        {getTransportIcon(option.type)}
+                                      </div>
+                                      <span className="font-medium">{option.description}</span>
+                                    </div>
+                                    <div className="text-sm text-muted-foreground ml-4">
+                                      {option.duration} • {option.cost}
+                                    </div>
                                   </div>
-                                  <span className="text-xs font-medium truncate">{option.description}</span>
-                                </div>
-                                <div className="text-xs text-left w-full">
-                                  <div className="text-muted-foreground">{option.duration}</div>
-                                  <div className="font-medium">{option.cost}</div>
-                                </div>
-                              </Button>
-                            ))}
-                          </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       )}
                       
-                      {/* Selected Option Display */}
-                      <div className="flex items-center space-x-4 mb-2">
-                        <div className={`w-8 h-8 ${getTransportColor(displayOption.type)} rounded-lg flex items-center justify-center text-white`}>
-                          {getTransportIcon(displayOption.type)}
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-medium">{displayOption.description}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {displayOption.duration} • {displayOption.cost}
+                      {/* Selected Option Summary */}
+                      <div className="bg-muted/30 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className={`w-6 h-6 ${getTransportColor(displayOption.type)} rounded-lg flex items-center justify-center text-white`}>
+                              {getTransportIcon(displayOption.type)}
+                            </div>
+                            <div>
+                              <div className="font-medium">{displayOption.description}</div>
+                              {displayOption.provider && (
+                                <div className="text-xs text-muted-foreground">{displayOption.provider}</div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-medium">{displayOption.cost}</div>
+                            <div className="text-sm text-muted-foreground">{displayOption.duration}</div>
                           </div>
                         </div>
-                      </div>
-                      
-                      <div className="ml-12 space-y-3">
-                        {/* Transport steps */}
-                        <div className="space-y-1">
-                          {displayOption.steps.map((step, stepIndex) => (
-                            <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
-                              <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
-                              <span>{step}</span>
-                            </div>
-                          ))}
-                        </div>
                         
-                        {/* Transport features */}
+                        {/* Key Features (simplified) */}
                         {displayOption.features && displayOption.features.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-2">
-                            {displayOption.features.map((feature, featureIndex) => (
-                              <Badge key={featureIndex} variant="outline" className="text-xs">
+                            {displayOption.features.slice(0, 3).map((feature, featureIndex) => (
+                              <Badge key={featureIndex} variant="secondary" className="text-xs">
                                 {feature}
                               </Badge>
                             ))}
-                          </div>
-                        )}
-                        
-                        {/* Provider information */}
-                        {displayOption.provider && (
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Provider: {displayOption.provider}
+                            {displayOption.features.length > 3 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{displayOption.features.length - 3} more
+                              </Badge>
+                            )}
                           </div>
                         )}
                       </div>
