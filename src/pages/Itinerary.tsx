@@ -3,9 +3,28 @@ import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Clock, DollarSign, Star, Calendar, Trash2, Plus, Route } from "lucide-react";
+import { MapPin, Clock, DollarSign, Star, Calendar, Trash2, Plus, Route, GripVertical } from "lucide-react";
 import { singaporeAttractions, getCategoryColor, type Attraction } from "@/data/attractions";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface ItineraryItem {
   id: string;
@@ -190,6 +209,35 @@ const Itinerary = () => {
       variant: "default"
     });
   };
+
+  const reorderItinerary = (oldIndex: number, newIndex: number) => {
+    const updatedItems = arrayMove(savedItems, oldIndex, newIndex);
+    setSavedItems(updatedItems);
+    localStorage.setItem('singapore-itinerary', JSON.stringify(updatedItems));
+    const schedules = generateDaySchedules(updatedItems);
+    setDaySchedules(schedules);
+    generateScheduleSuggestions(updatedItems, schedules);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = savedItems.findIndex(item => item.id === active.id);
+      const newIndex = savedItems.findIndex(item => item.id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        reorderItinerary(oldIndex, newIndex);
+      }
+    }
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const clearItinerary = () => {
     setSavedItems([]);
@@ -394,6 +442,88 @@ const Itinerary = () => {
     };
   };
 
+  // Sortable Attraction Item Component
+  const SortableAttractionItem = ({ item, attraction, onRemove }: {
+    item: ItineraryItem;
+    attraction: Attraction | null;
+    onRemove: (id: string) => void;
+  }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: item.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    if (!attraction) return null;
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className="flex items-start space-x-3 p-3 border border-border rounded-lg hover:shadow-sm transition-smooth"
+      >
+        {/* Drag Handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="flex items-center justify-center w-6 h-6 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing mt-1"
+          title="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between mb-2">
+            <h4 className="font-semibold text-base truncate pr-2">{attraction.name}</h4>
+            <Button
+              onClick={() => onRemove(item.id)}
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0 flex-shrink-0"
+              title="Remove from itinerary"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div className="flex items-center space-x-2 mb-2">
+            <Badge className={getCategoryColor(attraction.category)}>
+              {attraction.category}
+            </Badge>
+            <div className="flex items-center space-x-1">
+              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+              <span className="text-xs font-medium">{attraction.rating}</span>
+            </div>
+          </div>
+          
+          <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+            {attraction.description}
+          </p>
+          
+          <div className="space-y-1 text-xs">
+            <div className="flex items-center space-x-1">
+              <Clock className="h-3 w-3 text-muted-foreground" />
+              <span className="truncate">{attraction.openingHours}</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <DollarSign className="h-3 w-3 text-muted-foreground" />
+              <span className="truncate">{attraction.ticketPrice}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -561,54 +691,22 @@ const Itinerary = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {savedItems.map((item) => {
-                    const attraction = getAttractionDetails(item.id);
-                    if (!attraction) return null;
-                    
-                    return (
-                      <div key={item.id} className="flex items-start space-x-3 p-3 border border-border rounded-lg hover:shadow-sm transition-smooth">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-semibold text-base truncate pr-2">{attraction.name}</h4>
-                            <Button
-                              onClick={() => removeFromItinerary(item.id)}
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0 flex-shrink-0"
-                              title="Remove from itinerary"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          
-                          <div className="flex items-center space-x-2 mb-2">
-                            <Badge className={getCategoryColor(attraction.category)}>
-                              {attraction.category}
-                            </Badge>
-                            <div className="flex items-center space-x-1">
-                              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                              <span className="text-xs font-medium">{attraction.rating}</span>
-                            </div>
-                          </div>
-                          
-                          <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
-                            {attraction.description}
-                          </p>
-                          
-                          <div className="space-y-1 text-xs">
-                            <div className="flex items-center space-x-1">
-                              <Clock className="h-3 w-3 text-muted-foreground" />
-                              <span className="truncate">{attraction.openingHours}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <DollarSign className="h-3 w-3 text-muted-foreground" />
-                              <span className="truncate">{attraction.ticketPrice}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext items={savedItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
+                      {savedItems.map((item) => (
+                        <SortableAttractionItem
+                          key={item.id}
+                          item={item}
+                          attraction={getAttractionDetails(item.id)}
+                          onRemove={removeFromItinerary}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
                 </CardContent>
               </Card>
 
