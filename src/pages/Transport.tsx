@@ -716,12 +716,38 @@ const Transport = () => {
           </TabsContent>
 
           <TabsContent value="comfort" className="space-y-4">
+            {/* Day Filter Card */}
+            {dayRoutes.length > 1 && (
+              <Card className="shadow-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Select Day</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {dayRoutes.map((day) => (
+                      <Button
+                        key={day.day}
+                        variant={selectedDay === day.day ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedDay(day.day)}
+                        className="flex flex-col h-auto py-2 px-3"
+                      >
+                        <span className="font-medium">Day {day.day}</span>
+                        <span className="text-xs opacity-75">{day.date}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Comfort Route Card */}
             <Card className="shadow-card">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span className="flex items-center">
                     <Car className="h-5 w-5 mr-2" />
-                    Comfort Route
+                    {dayRoutes.length > 1 ? `Day ${selectedDay} Comfort Route` : 'Comfort Route'}
                   </span>
                   <div className="flex items-center space-x-4 text-sm">
                     <div className="flex items-center space-x-1">
@@ -734,36 +760,22 @@ const Transport = () => {
                     </div>
                   </div>
                 </CardTitle>
+                {dayRoutes.length > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {dayRoutes.find(d => d.day === selectedDay)?.date} • 
+                    {(dayRoutes.find(d => d.day === selectedDay)?.segments || []).length} route{(dayRoutes.find(d => d.day === selectedDay)?.segments || []).length !== 1 ? 's' : ''} planned
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Day Filter */}
-                {dayRoutes.length > 1 && (
-                  <div className="mb-6">
-                    <h4 className="text-sm font-medium mb-3">Select Day</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {dayRoutes.map((day) => (
-                        <Button
-                          key={day.day}
-                          variant={selectedDay === day.day ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedDay(day.day)}
-                          className="flex flex-col h-auto py-2 px-3"
-                        >
-                          <span className="font-medium">Day {day.day}</span>
-                          <span className="text-xs opacity-75">{day.date}</span>
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Transport Routes */}
                 {(dayRoutes.length > 0 ? (dayRoutes.find(d => d.day === selectedDay)?.segments || []) : routes.comfort).map((segment, index) => {
-                  const currentChoice = comfortChoices[index];
+                  // Find the actual segment index in the full routes array for comfort choices
+                  const actualIndex = routes.comfort.findIndex(r => r.from === segment.from && r.to === segment.to);
+                  const currentChoice = comfortChoices[actualIndex];
                   const displayOption = currentChoice?.selectedOption || segment.recommended;
                   
                   return (
-                    <div key={index} className="border border-border rounded-lg p-4 space-y-4">
+                    <div key={`${segment.from}-${segment.to}`} className="border border-border rounded-lg p-4 space-y-4">
                       {/* Route Header */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
@@ -788,11 +800,8 @@ const Transport = () => {
                                 (opt.type + (opt.provider || '')) === value
                               );
                               if (option) {
-                                // Find the actual segment index in the full routes array
-                                const actualIndex = routes.comfort.findIndex(r => r.from === segment.from && r.to === segment.to);
-                                if (actualIndex !== -1) {
-                                  handleComfortChoice(actualIndex, option);
-                                }
+                                // Use the actual index for comfort choices
+                                handleComfortChoice(actualIndex, option);
                               }
                             }}
                           >
