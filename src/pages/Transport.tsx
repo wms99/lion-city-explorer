@@ -81,6 +81,8 @@ const Transport = () => {
   }>({ budget: [], comfort: [], minimal_transfer: [] });
   const [comfortChoices, setComfortChoices] = useState<{ [segmentIndex: number]: ComfortChoice }>({});
   const [dayRoutes, setDayRoutes] = useState<DayRoute[]>([]);
+  const [dayRoutesBudget, setDayRoutesBudget] = useState<DayRoute[]>([]);
+  const [dayRoutesMinimal, setDayRoutesMinimal] = useState<DayRoute[]>([]);
   const [selectedDay, setSelectedDay] = useState<number>(1);
 
   // Sync selected day with localStorage for cross-tab consistency
@@ -1276,14 +1278,14 @@ const Transport = () => {
 
           <TabsContent value="minimal_transfer" className="space-y-4">
             {/* Day Filter Card */}
-            {dayRoutes.length > 0 && (
+            {dayRoutesMinimal.length > 0 && (
               <Card className="shadow-card">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg">Select Day</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
-                    {dayRoutes.map((day) => (
+                    {dayRoutesMinimal.map((day) => (
                       <Button
                         key={day.day}
                         variant={selectedDay === day.day ? 'default' : 'outline'}
@@ -1305,31 +1307,31 @@ const Transport = () => {
                 <CardTitle className="flex items-center justify-between">
                   <span className="flex items-center">
                     <RouteIcon className="h-5 w-5 mr-2" />
-                    {dayRoutes.length > 1 ? `Day ${selectedDay} Less Transfer/Walking Route` : 'Less Transfer/Walking Route'}
+                    {dayRoutesMinimal.length > 1 ? `Day ${selectedDay} Less Transfer/Walking Route` : 'Less Transfer/Walking Route'}
                   </span>
                   <div className="flex items-center space-x-4 text-sm">
                     <div className="flex items-center space-x-1">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span>{dayRoutes.length > 0 ? calculateTotalTime(dayRoutes.find(d => d.day === selectedDay)?.segments || []) : calculateTotalTime(routes.minimal_transfer)} min total</span>
+                      <span>{dayRoutesMinimal.length > 0 ? calculateTotalTime(dayRoutesMinimal.find(d => d.day === selectedDay)?.segments || []) : calculateTotalTime(routes.minimal_transfer)} min total</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <span>~S${dayRoutes.length > 0 ? calculateTotalCost(dayRoutes.find(d => d.day === selectedDay)?.segments || []).toFixed(2) : calculateTotalCost(routes.minimal_transfer).toFixed(2)}</span>
+                      <span>~S${dayRoutesMinimal.length > 0 ? calculateTotalCost(dayRoutesMinimal.find(d => d.day === selectedDay)?.segments || []).toFixed(2) : calculateTotalCost(routes.minimal_transfer).toFixed(2)}</span>
                     </div>
                   </div>
                 </CardTitle>
-                {dayRoutes.length > 0 && (
+                {dayRoutesMinimal.length > 0 && (
                   <p className="text-sm text-muted-foreground">
-                    {dayRoutes.find(d => d.day === selectedDay)?.date} • 
-                    {(dayRoutes.find(d => d.day === selectedDay)?.segments || []).length} route{(dayRoutes.find(d => d.day === selectedDay)?.segments || []).length !== 1 ? 's' : ''} planned
+                    {dayRoutesMinimal.find(d => d.day === selectedDay)?.date} • 
+                    {(dayRoutesMinimal.find(d => d.day === selectedDay)?.segments || []).length} route{(dayRoutesMinimal.find(d => d.day === selectedDay)?.segments || []).length !== 1 ? 's' : ''} planned
                   </p>
                 )}
               </CardHeader>
               <CardContent className="space-y-4">
-                {dayRoutes.length > 0 ? (
+                {dayRoutesMinimal.length > 0 ? (
                   // Day-based routing for minimal transfer
                   (() => {
-                    const currentDayRoute = dayRoutes.find(d => d.day === selectedDay);
+                    const currentDayRoute = dayRoutesMinimal.find(d => d.day === selectedDay);
                     const daySegments = currentDayRoute?.segments || [];
                     
                     if (daySegments.length === 0) {
@@ -1361,43 +1363,39 @@ const Transport = () => {
                       );
                     }
                     
-                    return daySegments.map((segment, index) => {
-                      // Get the minimal transfer option for this segment
-                      const minimalTransferSegment = routes.minimal_transfer.find(r => r.from === segment.from && r.to === segment.to) || segment;
-                      
-                      return (
+                    return daySegments.map((segment, index) => (
                         <div key={index} className="border border-border rounded-lg p-4">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center space-x-2">
                               <div className="w-6 h-6 bg-accent text-accent-foreground rounded-full flex items-center justify-center text-xs font-medium">
                                 {index + 1}
                               </div>
-                              <span className="font-medium">{minimalTransferSegment.from}</span>
+                              <span className="font-medium">{segment.from}</span>
                               <span className="text-muted-foreground">→</span>
-                              <span className="font-medium">{minimalTransferSegment.to}</span>
+                              <span className="font-medium">{segment.to}</span>
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {minimalTransferSegment.distance.toFixed(1)} km
+                              {segment.distance.toFixed(1)} km
                             </div>
                           </div>
                           
                           <div className="flex items-center space-x-4 mb-2">
-                            <div className={`w-8 h-8 ${getTransportColor(minimalTransferSegment.recommended.type)} rounded-lg flex items-center justify-center text-white`}>
-                              {getTransportIcon(minimalTransferSegment.recommended.type)}
+                            <div className={`w-8 h-8 ${getTransportColor(segment.recommended.type)} rounded-lg flex items-center justify-center text-white`}>
+                              {getTransportIcon(segment.recommended.type)}
                             </div>
                             <div className="flex-1">
-                              <div className="font-medium">{minimalTransferSegment.recommended.description}</div>
+                              <div className="font-medium">{segment.recommended.description}</div>
                               <div className="text-sm text-muted-foreground">
-                                {minimalTransferSegment.recommended.duration} • {minimalTransferSegment.recommended.cost}
+                                {segment.recommended.duration} • {segment.recommended.cost}
                               </div>
                               <div className="text-xs text-green-600 mt-1">
-                                ✓ {getTransferBenefit(minimalTransferSegment.recommended)}
+                                ✓ {getTransferBenefit(segment.recommended)}
                               </div>
                             </div>
                           </div>
                           
                           <div className="ml-12 space-y-1">
-                            {minimalTransferSegment.recommended.steps.map((step, stepIndex) => (
+                            {segment.recommended.steps.map((step, stepIndex) => (
                               <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
                                 <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
                                 <span>{step}</span>
@@ -1405,8 +1403,7 @@ const Transport = () => {
                             ))}
                           </div>
                         </div>
-                      );
-                    });
+                    ));
                   })()
                 ) : (
                   // Fallback to full route when no day routes available
