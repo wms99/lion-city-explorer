@@ -192,7 +192,6 @@ const Transport = () => {
   };
 
   const generateFallbackOptions = (distance: number, from: string, to: string): TransportOption[] => {
-    // Original distance-based calculations as fallback
     const options: TransportOption[] = [];
     
     const walkTime = Math.ceil(distance * 12);
@@ -207,7 +206,7 @@ const Transport = () => {
 
     if (distance > 0.5) {
       const mrtTime = Math.ceil(distance * 8 + 10);
-      const walkToMrt = Math.round(distance * 300); // Estimate walk distance
+      const walkToMrt = Math.round(distance * 300);
       const walkFromMrt = Math.round(distance * 250);
       
       options.push({
@@ -224,7 +223,7 @@ const Transport = () => {
     }
 
     const busTime = Math.ceil(distance * 10 + 8);
-    const walkToBus = Math.round(distance * 200); // Shorter walk to bus stops
+    const walkToBus = Math.round(distance * 200);
     const walkFromBus = Math.round(distance * 200);
     
     options.push({
@@ -239,39 +238,72 @@ const Transport = () => {
       ]
     });
 
-    if (distance > 0.5) {
-      const taxiTime = Math.ceil(distance * 4 + 3);
-      
-      options.push({
-        type: 'taxi',
-        provider: 'ComfortDelGro',
-        duration: `${taxiTime} min`,
-        cost: distance < 2 ? "S$3.90 - S$6.00" : `S$${(3.90 + distance * 0.6).toFixed(2)} - S$${(3.90 + distance * 0.9).toFixed(2)}`,
-        description: 'ComfortDelGro Taxi',
-        steps: [`Book taxi or hail on street`, `Direct ride to ${to}`],
-        features: ['Licensed taxi', 'Meter fare']
-      });
+    // Always include all taxi/car options for comfort routes (regardless of distance)
+    const taxiTime = Math.ceil(distance * 4 + 3);
+    
+    // ComfortDelGro Taxi
+    options.push({
+      type: 'taxi',
+      provider: 'ComfortDelGro',
+      duration: `${taxiTime} min`,
+      cost: distance < 2 ? "S$3.90 - S$6.00" : `S$${(3.90 + distance * 0.6).toFixed(2)} - S$${(3.90 + distance * 0.9).toFixed(2)}`,
+      description: 'ComfortDelGro Taxi',
+      steps: [`Book taxi or hail on street`, `Direct ride to ${to}`],
+      features: ['Licensed taxi', 'Meter fare', 'Door-to-door service']
+    });
 
-      options.push({
-        type: 'grab',
-        provider: 'Grab',
-        duration: `${taxiTime} min`,
-        cost: distance < 2 ? "S$3.50 - S$8.00" : `S$${(3.50 + distance * 0.65).toFixed(2)} - S$${(3.50 + distance * 1.4).toFixed(2)}`,
-        description: 'Grab Ride',
-        steps: [`Book Grab via app`, `Driver picks up and drives to ${to}`],
-        features: ['Cashless payment', 'Real-time tracking']
-      });
+    // Grab
+    options.push({
+      type: 'grab',
+      provider: 'Grab',
+      duration: `${taxiTime} min`,
+      cost: distance < 2 ? "S$3.50 - S$8.00" : `S$${(3.50 + distance * 0.65).toFixed(2)} - S$${(3.50 + distance * 1.4).toFixed(2)}`,
+      description: 'Grab Ride',
+      steps: [`Book Grab via app`, `Driver picks up and drives to ${to}`],
+      features: ['Cashless payment', 'Real-time tracking', 'Door-to-door service']
+    });
 
-      options.push({
-        type: 'tada',
-        provider: 'Tada', 
-        duration: `${taxiTime} min`,
-        cost: distance < 2 ? "S$3.00 - S$6.50" : `S$${(3.00 + distance * 0.6).toFixed(2)} - S$${(3.00 + distance * 0.8).toFixed(2)}`,
-        description: 'Tada Ride',
-        steps: [`Book Tada via app`, `Driver picks up and drives to ${to}`],
-        features: ['Competitive rates', 'Frequent promotions']
-      });
-    }
+    // Tada
+    options.push({
+      type: 'tada',
+      provider: 'Tada', 
+      duration: `${taxiTime} min`,
+      cost: distance < 2 ? "S$3.00 - S$6.50" : `S$${(3.00 + distance * 0.6).toFixed(2)} - S$${(3.00 + distance * 0.8).toFixed(2)}`,
+      description: 'Tada Ride',
+      steps: [`Book Tada via app`, `Driver picks up and drives to ${to}`],
+      features: ['Competitive rates', 'Frequent promotions', 'Door-to-door service']
+    });
+
+    // Gojek
+    options.push({
+      type: 'gojek',
+      provider: 'Gojek',
+      duration: `${taxiTime} min`,
+      cost: distance < 2 ? "S$3.20 - S$7.50" : `S$${(3.20 + distance * 0.62).toFixed(2)} - S$${(3.20 + distance * 1.2).toFixed(2)}`,
+      description: 'Gojek Ride',
+      steps: [`Book Gojek via app`, `Driver picks up and drives to ${to}`],
+      features: ['App-based booking', 'Cashless payment', 'Door-to-door service']
+    });
+
+    // Own Car
+    const ownCarTime = Math.ceil(distance * 3.5 + 5); // Slightly faster than taxi due to no pickup wait
+    const fuelCost = distance * 0.15; // Estimate fuel cost per km
+    const parkingCost = distance > 2 ? 2.5 : 1.5; // Parking fees
+    const totalOwnCarCost = fuelCost + parkingCost;
+    
+    options.push({
+      type: 'own_car',
+      provider: 'Own Car',
+      duration: `${ownCarTime} min`,
+      cost: `S$${totalOwnCarCost.toFixed(2)}`,
+      description: 'Drive Own Car',
+      steps: [
+        `Drive from ${from} to ${to}`,
+        `Find parking near destination`,
+        `Walk from parking to ${to}`
+      ],
+      features: ['Complete privacy', 'Flexible timing', 'Storage space']
+    });
 
     return options;
   };
@@ -395,12 +427,21 @@ const Transport = () => {
 
     const comfortRoutes = segments.map(segment => ({
       ...segment,
-      recommended: segment.distance > 1.0 
-        ? segment.transportOptions.find(opt => opt.type === 'grab' || opt.type === 'tada') || 
-          segment.transportOptions.find(opt => opt.type === 'taxi') ||
-          segment.transportOptions.find(opt => opt.type === 'public_transport') || 
-          segment.transportOptions[0]
-        : segment.transportOptions.find(opt => opt.type === 'public_transport' || opt.type === 'mrt') || segment.transportOptions[0]
+      recommended: segment.transportOptions.find(opt => opt.type === 'grab') || 
+                  segment.transportOptions.find(opt => opt.type === 'tada') ||
+                  segment.transportOptions.find(opt => opt.type === 'taxi') ||
+                  segment.transportOptions.find(opt => opt.type === 'own_car') ||
+                  segment.transportOptions[0],
+      comfortChoice: {
+        selectedOption: segment.transportOptions.find(opt => opt.type === 'grab') || 
+                      segment.transportOptions.find(opt => opt.type === 'tada') ||
+                      segment.transportOptions.find(opt => opt.type === 'taxi') ||
+                      segment.transportOptions.find(opt => opt.type === 'own_car') ||
+                      segment.transportOptions[0],
+        availableOptions: segment.transportOptions.filter(opt => 
+          ['taxi', 'grab', 'tada', 'gojek', 'own_car'].includes(opt.type)
+        )
+      }
     }));
 
     const minimalTransferRoutes = segments.map(segment => ({
@@ -447,7 +488,7 @@ const Transport = () => {
       case 'grab':
       case 'tada':
       case 'gojek':
-      case 'private_hire': return <Car className="h-4 w-4" />;
+      case 'private_hire': 
       case 'own_car': return <Car className="h-4 w-4" />;
       case 'walk': return <Footprints className="h-4 w-4" />;
       default: return <Navigation className="h-4 w-4" />;
@@ -478,7 +519,12 @@ const Transport = () => {
         option = comfortChoices[index].selectedOption;
       }
       
-      // Extract first number from cost string (e.g., "S$3.50 - S$8.00" -> 3.50)
+      // Handle "Free" cost
+      if (option.cost.toLowerCase().includes('free')) {
+        return total;
+      }
+      
+      // Extract first number from cost string (e.g., "S$3.50 - S$8.00" -> 3.50, "S$5.50" -> 5.50)
       const costMatch = option.cost.match(/\d+\.?\d*/);
       const cost = costMatch ? parseFloat(costMatch[0]) : 0;
       return total + cost;
@@ -493,9 +539,24 @@ const Transport = () => {
         option = comfortChoices[index].selectedOption;
       }
       
-      // Extract number from duration string (e.g., "15 min" -> 15)
-      const timeMatch = option.duration.match(/\d+/);
-      const time = timeMatch ? parseInt(timeMatch[0]) : 0;
+      // Extract number from duration string (e.g., "15 min" -> 15, "1 hr 30 min" -> 90)
+      let time = 0;
+      const hourMatch = option.duration.match(/(\d+)\s*hr/);
+      const minMatch = option.duration.match(/(\d+)\s*min/);
+      
+      if (hourMatch) {
+        time += parseInt(hourMatch[1]) * 60;
+      }
+      if (minMatch) {
+        time += parseInt(minMatch[1]);
+      }
+      
+      // Fallback to simple number extraction if no specific format found
+      if (time === 0) {
+        const simpleMatch = option.duration.match(/\d+/);
+        time = simpleMatch ? parseInt(simpleMatch[0]) : 0;
+      }
+      
       return total + time;
     }, 0);
   };
@@ -588,6 +649,16 @@ const Transport = () => {
               cost: 'Free',
               description: 'Walk directly',
               steps: [`Walk from ${fromAttraction.name} to ${toAttraction.name}`]
+            },
+            comfortChoice: {
+              selectedOption: transportOptions.find(opt => opt.type === 'grab') || 
+                            transportOptions.find(opt => opt.type === 'tada') ||
+                            transportOptions.find(opt => opt.type === 'taxi') ||
+                            transportOptions.find(opt => opt.type === 'own_car') ||
+                            transportOptions[0],
+              availableOptions: transportOptions.filter(opt => 
+                ['taxi', 'grab', 'tada', 'gojek', 'own_car'].includes(opt.type)
+              )
             }
           });
         }
@@ -1000,7 +1071,7 @@ const Transport = () => {
                                 <SelectTrigger className="w-full">
                                   <SelectValue placeholder="Select transport option" />
                                 </SelectTrigger>
-                                <SelectContent className="bg-background border shadow-lg z-50">
+                                <SelectContent className="bg-background border border-border shadow-lg z-50 max-h-80 overflow-auto">
                                   {segment.comfortChoice.availableOptions.map((option, optionIndex) => (
                                     <SelectItem 
                                       key={optionIndex} 
@@ -1107,7 +1178,7 @@ const Transport = () => {
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Select transport option" />
                               </SelectTrigger>
-                              <SelectContent className="bg-background border shadow-lg z-50">
+                              <SelectContent className="bg-background border border-border shadow-lg z-50 max-h-80 overflow-auto">
                                 {segment.comfortChoice.availableOptions.map((option, optionIndex) => (
                                   <SelectItem 
                                     key={optionIndex} 
