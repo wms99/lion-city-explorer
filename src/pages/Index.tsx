@@ -72,7 +72,7 @@ const Index = () => {
       {/* Quick Actions */}
       <div className="p-6 bg-gradient-to-b from-background/0 to-background">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 -mt-16 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 mt-8 relative z-10">
             <Card 
               className="bg-card/80 backdrop-blur-sm shadow-card hover:shadow-elegant transition-smooth cursor-pointer"
               onClick={() => navigate('/tourist-spots')}
