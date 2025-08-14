@@ -22,7 +22,7 @@ import {
   Navigation,
   Wallet,
   Footprints,
-  Zap,
+  Route as RouteIcon,
   ChevronDown
 } from "lucide-react";
 import { singaporeAttractions, type Attraction } from "@/data/attractions";
@@ -77,8 +77,8 @@ const Transport = () => {
   const [routes, setRoutes] = useState<{
     budget: RouteSegment[];
     comfort: RouteSegment[];
-    speed: RouteSegment[];
-  }>({ budget: [], comfort: [], speed: [] });
+    minimal_transfer: RouteSegment[];
+  }>({ budget: [], comfort: [], minimal_transfer: [] });
   const [comfortChoices, setComfortChoices] = useState<{ [segmentIndex: number]: ComfortChoice }>({});
   const [dayRoutes, setDayRoutes] = useState<DayRoute[]>([]);
   const [selectedDay, setSelectedDay] = useState<number>(1);
@@ -395,6 +395,76 @@ const Transport = () => {
     return options;
   };
 
+  // Score transport options based on transfers and walking time
+  const getTransferScore = (option: TransportOption): number => {
+    let score = 0;
+    
+    // Count transfers based on steps
+    const transferCount = option.steps.filter(step => 
+      step.toLowerCase().includes('take') || 
+      step.toLowerCase().includes('transfer') ||
+      step.toLowerCase().includes('change')
+    ).length;
+    
+    // Add penalty for each transfer
+    score += transferCount * 10;
+    
+    // Add penalty for walking steps
+    const walkingSteps = option.steps.filter(step => 
+      step.toLowerCase().includes('walk')
+    ).length;
+    score += walkingSteps * 5;
+    
+    // Penalty for longer walking time
+    if (option.walkingTime) {
+      const walkMinutes = parseInt(option.walkingTime);
+      score += Math.max(0, walkMinutes - 5); // No penalty for walking < 5 min
+    }
+    
+    // Bonus for direct transport options
+    if (option.type === 'grab' || option.type === 'tada' || option.type === 'taxi' || option.type === 'own_car') {
+      score -= 15; // Direct transport bonus
+    }
+    
+    // Bonus for public transport with minimal transfers
+    if (option.type === 'public_transport' && transferCount <= 1) {
+      score -= 5;
+    }
+    
+    return score;
+  };
+
+  // Get benefit description for minimal transfer options
+  const getTransferBenefit = (option: TransportOption): string => {
+    const transferCount = option.steps.filter(step => 
+      step.toLowerCase().includes('take') || 
+      step.toLowerCase().includes('transfer') ||
+      step.toLowerCase().includes('change')
+    ).length;
+    
+    const walkingSteps = option.steps.filter(step => 
+      step.toLowerCase().includes('walk')
+    ).length;
+    
+    if (option.type === 'grab' || option.type === 'tada' || option.type === 'taxi' || option.type === 'own_car') {
+      return 'Direct door-to-door service';
+    }
+    
+    if (transferCount === 0) {
+      return 'No transfers required';
+    }
+    
+    if (transferCount === 1) {
+      return 'Single transfer only';
+    }
+    
+    if (walkingSteps <= 2) {
+      return 'Minimal walking required';
+    }
+    
+    return 'Optimized for fewer transfers';
+  };
+
   const generateRoutes = async (attractionList: Attraction[]) => {
     const segments: RouteSegment[] = [];
     
@@ -452,19 +522,20 @@ const Transport = () => {
         : segment.transportOptions.find(opt => opt.type === 'public_transport' || opt.type === 'mrt') || segment.transportOptions[0]
     }));
 
-    const speedRoutes = segments.map(segment => ({
+    const minimalTransferRoutes = segments.map(segment => ({
       ...segment,
-      recommended: segment.transportOptions.reduce((fastest, current) => {
-        const fastestTime = parseInt(fastest.duration);
-        const currentTime = parseInt(current.duration);
-        return currentTime < fastestTime ? current : fastest;
+      recommended: segment.transportOptions.reduce((bestOption, current) => {
+        // Prioritize options with minimal transfers and walking
+        const bestScore = getTransferScore(bestOption);
+        const currentScore = getTransferScore(current);
+        return currentScore < bestScore ? current : bestOption;
       })
     }));
 
     setRoutes({
       budget: budgetRoutes,
       comfort: comfortRoutes,
-      speed: speedRoutes
+      minimal_transfer: minimalTransferRoutes
     });
 
     // Generate day routes after setting main routes
@@ -721,9 +792,9 @@ const Transport = () => {
               <Car className="h-4 w-4" />
               <span>Comfort</span>
             </TabsTrigger>
-            <TabsTrigger value="speed" className="flex items-center space-x-2">
-              <Zap className="h-4 w-4" />
-              <span>Fastest</span>
+            <TabsTrigger value="minimal_transfer" className="flex items-center space-x-2">
+              <RouteIcon className="h-4 w-4" />
+              <span>Less Transfer</span>
             </TabsTrigger>
           </TabsList>
 
@@ -987,7 +1058,7 @@ const Transport = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="speed" className="space-y-4">
+          <TabsContent value="minimal_transfer" className="space-y-4">
             {/* Day Filter Card */}
             {dayRoutes.length > 1 && (
               <Card className="shadow-card">
@@ -1017,17 +1088,17 @@ const Transport = () => {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span className="flex items-center">
-                    <Zap className="h-5 w-5 mr-2" />
-                    {dayRoutes.length > 1 ? `Day ${selectedDay} Fastest Route` : 'Fastest Route'}
+                    <RouteIcon className="h-5 w-5 mr-2" />
+                    {dayRoutes.length > 1 ? `Day ${selectedDay} Less Transfer Route` : 'Less Transfer Route'}
                   </span>
                   <div className="flex items-center space-x-4 text-sm">
                     <div className="flex items-center space-x-1">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span>{dayRoutes.length > 0 ? calculateTotalTime(dayRoutes.find(d => d.day === selectedDay)?.segments || []) : calculateTotalTime(routes.speed)} min total</span>
+                      <span>{dayRoutes.length > 0 ? calculateTotalTime(dayRoutes.find(d => d.day === selectedDay)?.segments || []) : calculateTotalTime(routes.minimal_transfer)} min total</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <span>~S${dayRoutes.length > 0 ? calculateTotalCost(dayRoutes.find(d => d.day === selectedDay)?.segments || []).toFixed(2) : calculateTotalCost(routes.speed).toFixed(2)}</span>
+                      <span>~S${dayRoutes.length > 0 ? calculateTotalCost(dayRoutes.find(d => d.day === selectedDay)?.segments || []).toFixed(2) : calculateTotalCost(routes.minimal_transfer).toFixed(2)}</span>
                     </div>
                   </div>
                 </CardTitle>
@@ -1039,9 +1110,9 @@ const Transport = () => {
                 )}
               </CardHeader>
               <CardContent className="space-y-4">
-                {(dayRoutes.length > 0 ? (dayRoutes.find(d => d.day === selectedDay)?.segments || []) : routes.speed).map((segment, index) => {
-                  // Get the speed option for this segment
-                  const speedSegment = routes.speed.find(r => r.from === segment.from && r.to === segment.to) || segment;
+                {(dayRoutes.length > 0 ? (dayRoutes.find(d => d.day === selectedDay)?.segments || []) : routes.minimal_transfer).map((segment, index) => {
+                  // Get the minimal transfer option for this segment
+                  const minimalTransferSegment = routes.minimal_transfer.find(r => r.from === segment.from && r.to === segment.to) || segment;
                   
                   return (
                     <div key={index} className="border border-border rounded-lg p-4">
@@ -1050,29 +1121,32 @@ const Transport = () => {
                           <div className="w-6 h-6 bg-accent text-accent-foreground rounded-full flex items-center justify-center text-xs font-medium">
                             {index + 1}
                           </div>
-                          <span className="font-medium">{speedSegment.from}</span>
+                          <span className="font-medium">{minimalTransferSegment.from}</span>
                           <span className="text-muted-foreground">→</span>
-                          <span className="font-medium">{speedSegment.to}</span>
+                          <span className="font-medium">{minimalTransferSegment.to}</span>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {speedSegment.distance.toFixed(1)} km
+                          {minimalTransferSegment.distance.toFixed(1)} km
                         </div>
                       </div>
                       
                       <div className="flex items-center space-x-4 mb-2">
-                        <div className={`w-8 h-8 ${getTransportColor(speedSegment.recommended.type)} rounded-lg flex items-center justify-center text-white`}>
-                          {getTransportIcon(speedSegment.recommended.type)}
+                        <div className={`w-8 h-8 ${getTransportColor(minimalTransferSegment.recommended.type)} rounded-lg flex items-center justify-center text-white`}>
+                          {getTransportIcon(minimalTransferSegment.recommended.type)}
                         </div>
                         <div className="flex-1">
-                          <div className="font-medium">{speedSegment.recommended.description}</div>
+                          <div className="font-medium">{minimalTransferSegment.recommended.description}</div>
                           <div className="text-sm text-muted-foreground">
-                            {speedSegment.recommended.duration} • {speedSegment.recommended.cost}
+                            {minimalTransferSegment.recommended.duration} • {minimalTransferSegment.recommended.cost}
+                          </div>
+                          <div className="text-xs text-green-600 mt-1">
+                            ✓ {getTransferBenefit(minimalTransferSegment.recommended)}
                           </div>
                         </div>
                       </div>
                       
                       <div className="ml-12 space-y-1">
-                        {speedSegment.recommended.steps.map((step, stepIndex) => (
+                        {minimalTransferSegment.recommended.steps.map((step, stepIndex) => (
                           <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
                             <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
                             <span>{step}</span>
