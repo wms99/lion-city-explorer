@@ -160,46 +160,59 @@ const Transport = () => {
         const ptTime = oneMapService.formatTime(ptRoute.route_summary.total_time);
         const ptDistance = oneMapService.formatDistance(ptRoute.route_summary.total_distance);
         
+        // Enhanced steps with more details for budget option
+        const detailedSteps = ptRoute.route_instructions?.map((instruction, index) => {
+          const distance = oneMapService.formatDistance(instruction.distance);
+          const time = oneMapService.formatTime(instruction.time);
+          return `${instruction.instruction} (${distance}, ${time})`;
+        }) || [
+          `Walk to nearest transport stop (~200-400m, 3-5 min)`,
+          `Take MRT/Bus via public transport network`,
+          `Walk to ${to} from nearest stop (~200-400m, 3-5 min)`
+        ];
+        
         options.push({
           type: 'public_transport',
           duration: ptTime,
           cost: 'S$1.07 - S$2.50',
-          description: `Public Transport (${ptDistance})`,
-          steps: ptRoute.route_instructions?.map(instruction => instruction.instruction) || [
-            `Take MRT/Bus from ${from}`,
-            `Travel via public transport`,
-            `Arrive at ${to}`
-          ],
+          description: `Public Transport (${ptDistance}) - Budget Option`,
+          steps: detailedSteps,
           realRouteData: ptRoute
         });
       }
 
-      // Individual MRT/Bus options (fallback)
+      // Individual MRT/Bus options (fallback with enhanced details)
       if (distance > 0.5) {
         const mrtTime = Math.ceil(distance * 8 + 10);
+        const walkToMrt = Math.round(distance * 300); // Estimate walk distance in meters
+        const walkFromMrt = Math.round(distance * 250);
+        
         options.push({
           type: 'mrt',
           duration: `${mrtTime} min`,
           cost: 'S$1.40 - S$2.50',
-          description: 'Take MRT (Mass Rapid Transit)',
+          description: 'Take MRT (Mass Rapid Transit) - Budget Option',
           steps: [
-            `Walk to nearest MRT station (5-8 min)`,
-            `Take MRT towards destination`,
-            `Walk from MRT station to ${to} (5-8 min)`
+            `Walk to nearest MRT station (~${walkToMrt}m, 5-8 min)`,
+            `Take MRT Line towards destination area`,
+            `Walk from MRT station to ${to} (~${walkFromMrt}m, 5-8 min)`
           ]
         });
       }
 
       const busTime = Math.ceil(distance * 10 + 8);
+      const walkToBus = Math.round(distance * 200); // Shorter walk to bus stops
+      const walkFromBus = Math.round(distance * 200);
+      
       options.push({
         type: 'bus',
         duration: `${busTime} min`,
         cost: 'S$1.07 - S$2.17',
-        description: 'Take public bus',
+        description: 'Take public bus - Most Budget-Friendly',
         steps: [
-          `Walk to nearest bus stop (3-5 min)`,
-          `Take bus towards destination`,
-          `Walk from bus stop to ${to} (3-5 min)`
+          `Walk to nearest bus stop (~${walkToBus}m, 3-5 min)`,
+          `Take public bus (check bus routes via CitymapperSG app)`,
+          `Walk from bus stop to ${to} (~${walkFromBus}m, 3-5 min)`
         ]
       });
 
@@ -332,29 +345,35 @@ const Transport = () => {
 
     if (distance > 0.5) {
       const mrtTime = Math.ceil(distance * 8 + 10);
+      const walkToMrt = Math.round(distance * 300); // Estimate walk distance
+      const walkFromMrt = Math.round(distance * 250);
+      
       options.push({
         type: 'mrt',
         duration: `${mrtTime} min`,
         cost: 'S$1.40 - S$2.50',
-        description: 'Take MRT (Mass Rapid Transit)',
+        description: 'Take MRT (Mass Rapid Transit) - Budget Option',
         steps: [
-          `Walk to nearest MRT station (5-8 min)`,
-          `Take MRT towards destination`,
-          `Walk from MRT station to ${to} (5-8 min)`
+          `Walk to nearest MRT station (~${walkToMrt}m, 5-8 min)`,
+          `Take MRT Line towards destination area`,
+          `Walk from MRT station to ${to} (~${walkFromMrt}m, 5-8 min)`
         ]
       });
     }
 
     const busTime = Math.ceil(distance * 10 + 8);
+    const walkToBus = Math.round(distance * 200); // Shorter walk to bus stops
+    const walkFromBus = Math.round(distance * 200);
+    
     options.push({
       type: 'bus',
       duration: `${busTime} min`,
       cost: 'S$1.07 - S$2.17',
-      description: 'Take public bus',
+      description: 'Take public bus - Most Budget-Friendly',
       steps: [
-        `Walk to nearest bus stop (3-5 min)`,
-        `Take bus towards destination`,
-        `Walk from bus stop to ${to} (3-5 min)`
+        `Walk to nearest bus stop (~${walkToBus}m, 3-5 min)`,
+        `Take public bus (check bus routes via CitymapperSG app)`,
+        `Walk from bus stop to ${to} (~${walkFromBus}m, 3-5 min)`
       ]
     });
 
@@ -421,7 +440,7 @@ const Transport = () => {
       score += Math.max(0, walkMinutes - 5); // No penalty for walking < 5 min
     }
     
-    // Bonus for direct transport options
+    // Bonus for direct transport options (only for comfort routes, not minimal transfer)
     if (option.type === 'grab' || option.type === 'tada' || option.type === 'taxi' || option.type === 'own_car') {
       score -= 15; // Direct transport bonus
     }
@@ -524,12 +543,17 @@ const Transport = () => {
 
     const minimalTransferRoutes = segments.map(segment => ({
       ...segment,
-      recommended: segment.transportOptions.reduce((bestOption, current) => {
-        // Prioritize options with minimal transfers and walking
-        const bestScore = getTransferScore(bestOption);
-        const currentScore = getTransferScore(current);
-        return currentScore < bestScore ? current : bestOption;
-      })
+      recommended: segment.transportOptions
+        .filter(option => 
+          // Only include public transport and walking for minimal transfer
+          ['walk', 'mrt', 'bus', 'public_transport'].includes(option.type)
+        )
+        .reduce((bestOption, current) => {
+          // Prioritize options with minimal transfers and walking
+          const bestScore = getTransferScore(bestOption);
+          const currentScore = getTransferScore(current);
+          return currentScore < bestScore ? current : bestOption;
+        })
     }));
 
     setRoutes({
