@@ -728,64 +728,100 @@ const Transport = () => {
           </TabsList>
 
           <TabsContent value="budget" className="space-y-4">
+            {/* Day Filter Card */}
+            {dayRoutes.length > 1 && (
+              <Card className="shadow-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Select Day</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {dayRoutes.map((day) => (
+                      <Button
+                        key={day.day}
+                        variant={selectedDay === day.day ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedDay(day.day)}
+                        className="flex flex-col h-auto py-2 px-3"
+                      >
+                        <span className="font-medium">Day {day.day}</span>
+                        <span className="text-xs opacity-75">{day.date}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="shadow-card">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span className="flex items-center">
                     <Wallet className="h-5 w-5 mr-2" />
-                    Budget-Friendly Route
+                    {dayRoutes.length > 1 ? `Day ${selectedDay} Budget-Friendly Route` : 'Budget-Friendly Route'}
                   </span>
                   <div className="flex items-center space-x-4 text-sm">
                     <div className="flex items-center space-x-1">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span>{calculateTotalTime(routes.budget)} min total</span>
+                      <span>{dayRoutes.length > 0 ? calculateTotalTime(dayRoutes.find(d => d.day === selectedDay)?.segments || []) : calculateTotalTime(routes.budget)} min total</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <span>~S${calculateTotalCost(routes.budget).toFixed(2)}</span>
+                      <span>~S${dayRoutes.length > 0 ? calculateTotalCost(dayRoutes.find(d => d.day === selectedDay)?.segments || []).toFixed(2) : calculateTotalCost(routes.budget).toFixed(2)}</span>
                     </div>
                   </div>
                 </CardTitle>
+                {dayRoutes.length > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {dayRoutes.find(d => d.day === selectedDay)?.date} • 
+                    {(dayRoutes.find(d => d.day === selectedDay)?.segments || []).length} route{(dayRoutes.find(d => d.day === selectedDay)?.segments || []).length !== 1 ? 's' : ''} planned
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
-                {routes.budget.map((segment, index) => (
-                  <div key={index} className="border border-border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
-                          {index + 1}
+                {(dayRoutes.length > 0 ? (dayRoutes.find(d => d.day === selectedDay)?.segments || []) : routes.budget).map((segment, index) => {
+                  // Get the budget option for this segment
+                  const budgetSegment = routes.budget.find(r => r.from === segment.from && r.to === segment.to) || segment;
+                  
+                  return (
+                    <div key={index} className="border border-border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
+                            {index + 1}
+                          </div>
+                          <span className="font-medium">{budgetSegment.from}</span>
+                          <span className="text-muted-foreground">→</span>
+                          <span className="font-medium">{budgetSegment.to}</span>
                         </div>
-                        <span className="font-medium">{segment.from}</span>
-                        <span className="text-muted-foreground">→</span>
-                        <span className="font-medium">{segment.to}</span>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {segment.distance.toFixed(1)} km
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-4 mb-2">
-                      <div className={`w-8 h-8 ${getTransportColor(segment.recommended.type)} rounded-lg flex items-center justify-center text-white`}>
-                        {getTransportIcon(segment.recommended.type)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium">{segment.recommended.description}</div>
                         <div className="text-sm text-muted-foreground">
-                          {segment.recommended.duration} • {segment.recommended.cost}
+                          {budgetSegment.distance.toFixed(1)} km
                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="ml-12 space-y-1">
-                      {segment.recommended.steps.map((step, stepIndex) => (
-                        <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
-                          <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
-                          <span>{step}</span>
+                      
+                      <div className="flex items-center space-x-4 mb-2">
+                        <div className={`w-8 h-8 ${getTransportColor(budgetSegment.recommended.type)} rounded-lg flex items-center justify-center text-white`}>
+                          {getTransportIcon(budgetSegment.recommended.type)}
                         </div>
-                      ))}
+                        <div className="flex-1">
+                          <div className="font-medium">{budgetSegment.recommended.description}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {budgetSegment.recommended.duration} • {budgetSegment.recommended.cost}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="ml-12 space-y-1">
+                        {budgetSegment.recommended.steps.map((step, stepIndex) => (
+                          <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
+                            <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
+                            <span>{step}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           </TabsContent>
@@ -952,64 +988,100 @@ const Transport = () => {
           </TabsContent>
 
           <TabsContent value="speed" className="space-y-4">
+            {/* Day Filter Card */}
+            {dayRoutes.length > 1 && (
+              <Card className="shadow-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Select Day</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {dayRoutes.map((day) => (
+                      <Button
+                        key={day.day}
+                        variant={selectedDay === day.day ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedDay(day.day)}
+                        className="flex flex-col h-auto py-2 px-3"
+                      >
+                        <span className="font-medium">Day {day.day}</span>
+                        <span className="text-xs opacity-75">{day.date}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="shadow-card">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span className="flex items-center">
                     <Zap className="h-5 w-5 mr-2" />
-                    Fastest Route
+                    {dayRoutes.length > 1 ? `Day ${selectedDay} Fastest Route` : 'Fastest Route'}
                   </span>
                   <div className="flex items-center space-x-4 text-sm">
                     <div className="flex items-center space-x-1">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span>{calculateTotalTime(routes.speed)} min total</span>
+                      <span>{dayRoutes.length > 0 ? calculateTotalTime(dayRoutes.find(d => d.day === selectedDay)?.segments || []) : calculateTotalTime(routes.speed)} min total</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <span>~S${calculateTotalCost(routes.speed).toFixed(2)}</span>
+                      <span>~S${dayRoutes.length > 0 ? calculateTotalCost(dayRoutes.find(d => d.day === selectedDay)?.segments || []).toFixed(2) : calculateTotalCost(routes.speed).toFixed(2)}</span>
                     </div>
                   </div>
                 </CardTitle>
+                {dayRoutes.length > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {dayRoutes.find(d => d.day === selectedDay)?.date} • 
+                    {(dayRoutes.find(d => d.day === selectedDay)?.segments || []).length} route{(dayRoutes.find(d => d.day === selectedDay)?.segments || []).length !== 1 ? 's' : ''} planned
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
-                {routes.speed.map((segment, index) => (
-                  <div key={index} className="border border-border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-6 h-6 bg-accent text-accent-foreground rounded-full flex items-center justify-center text-xs font-medium">
-                          {index + 1}
+                {(dayRoutes.length > 0 ? (dayRoutes.find(d => d.day === selectedDay)?.segments || []) : routes.speed).map((segment, index) => {
+                  // Get the speed option for this segment
+                  const speedSegment = routes.speed.find(r => r.from === segment.from && r.to === segment.to) || segment;
+                  
+                  return (
+                    <div key={index} className="border border-border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-accent text-accent-foreground rounded-full flex items-center justify-center text-xs font-medium">
+                            {index + 1}
+                          </div>
+                          <span className="font-medium">{speedSegment.from}</span>
+                          <span className="text-muted-foreground">→</span>
+                          <span className="font-medium">{speedSegment.to}</span>
                         </div>
-                        <span className="font-medium">{segment.from}</span>
-                        <span className="text-muted-foreground">→</span>
-                        <span className="font-medium">{segment.to}</span>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {segment.distance.toFixed(1)} km
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-4 mb-2">
-                      <div className={`w-8 h-8 ${getTransportColor(segment.recommended.type)} rounded-lg flex items-center justify-center text-white`}>
-                        {getTransportIcon(segment.recommended.type)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium">{segment.recommended.description}</div>
                         <div className="text-sm text-muted-foreground">
-                          {segment.recommended.duration} • {segment.recommended.cost}
+                          {speedSegment.distance.toFixed(1)} km
                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="ml-12 space-y-1">
-                      {segment.recommended.steps.map((step, stepIndex) => (
-                        <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
-                          <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
-                          <span>{step}</span>
+                      
+                      <div className="flex items-center space-x-4 mb-2">
+                        <div className={`w-8 h-8 ${getTransportColor(speedSegment.recommended.type)} rounded-lg flex items-center justify-center text-white`}>
+                          {getTransportIcon(speedSegment.recommended.type)}
                         </div>
-                      ))}
+                        <div className="flex-1">
+                          <div className="font-medium">{speedSegment.recommended.description}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {speedSegment.recommended.duration} • {speedSegment.recommended.cost}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="ml-12 space-y-1">
+                        {speedSegment.recommended.steps.map((step, stepIndex) => (
+                          <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
+                            <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
+                            <span>{step}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           </TabsContent>
