@@ -533,9 +533,9 @@ const Transport = () => {
     }));
 
     setRoutes({
-      budget: budgetRoutes,
-      comfort: comfortRoutes,
-      minimal_transfer: minimalTransferRoutes
+      budget: budgetRoutes || [],
+      comfort: comfortRoutes || [],
+      minimal_transfer: minimalTransferRoutes || []
     });
 
     // Generate day routes after setting main routes
@@ -584,7 +584,9 @@ const Transport = () => {
     }
   };
 
-  const calculateTotalCost = (segments: RouteSegment[], useComfortChoices: boolean = false) => {
+  const calculateTotalCost = (segments: RouteSegment[] | undefined, useComfortChoices: boolean = false) => {
+    if (!segments || !Array.isArray(segments)) return 0;
+    
     return segments.reduce((total, segment, index) => {
       let option = segment.recommended;
       
@@ -597,7 +599,9 @@ const Transport = () => {
     }, 0);
   };
 
-  const calculateTotalTime = (segments: RouteSegment[], useComfortChoices: boolean = false) => {
+  const calculateTotalTime = (segments: RouteSegment[] | undefined, useComfortChoices: boolean = false) => {
+    if (!segments || !Array.isArray(segments)) return 0;
+    
     return segments.reduce((total, segment, index) => {
       let option = segment.recommended;
       
@@ -834,11 +838,11 @@ const Transport = () => {
                   <div className="flex items-center space-x-4 text-sm">
                     <div className="flex items-center space-x-1">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span>{dayRoutes.length > 0 ? calculateTotalTime(dayRoutes.find(d => d.day === selectedDay)?.segments || []) : calculateTotalTime(routes.budget)} min total</span>
+                      <span>{(routes.budget && routes.budget.length > 0) ? calculateTotalTime(dayRoutes.length > 0 ? (dayRoutes.find(d => d.day === selectedDay)?.segments || []) : routes.budget) : 0} min total</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <span>~S${dayRoutes.length > 0 ? calculateTotalCost(dayRoutes.find(d => d.day === selectedDay)?.segments || []).toFixed(2) : calculateTotalCost(routes.budget).toFixed(2)}</span>
+                      <span>~S${(routes.budget && routes.budget.length > 0) ? calculateTotalCost(dayRoutes.length > 0 ? (dayRoutes.find(d => d.day === selectedDay)?.segments || []) : routes.budget).toFixed(2) : '0.00'}</span>
                     </div>
                   </div>
                 </CardTitle>
@@ -934,11 +938,11 @@ const Transport = () => {
                   <div className="flex items-center space-x-4 text-sm">
                     <div className="flex items-center space-x-1">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span>{dayRoutes.length > 0 ? calculateTotalTime(dayRoutes.find(d => d.day === selectedDay)?.segments || [], true) : calculateTotalTime(routes.comfort, true)} min total</span>
+                      <span>{(routes.comfort && routes.comfort.length > 0) ? calculateTotalTime(dayRoutes.length > 0 ? (dayRoutes.find(d => d.day === selectedDay)?.segments || []) : routes.comfort, true) : 0} min total</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <span>~S${dayRoutes.length > 0 ? calculateTotalCost(dayRoutes.find(d => d.day === selectedDay)?.segments || [], true).toFixed(2) : calculateTotalCost(routes.comfort, true).toFixed(2)}</span>
+                      <span>~S${(routes.comfort && routes.comfort.length > 0) ? calculateTotalCost(dayRoutes.length > 0 ? (dayRoutes.find(d => d.day === selectedDay)?.segments || []) : routes.comfort, true).toFixed(2) : '0.00'}</span>
                     </div>
                   </div>
                 </CardTitle>
@@ -1094,11 +1098,11 @@ const Transport = () => {
                   <div className="flex items-center space-x-4 text-sm">
                     <div className="flex items-center space-x-1">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span>{dayRoutes.length > 0 ? calculateTotalTime(dayRoutes.find(d => d.day === selectedDay)?.segments || []) : calculateTotalTime(routes.minimal_transfer)} min total</span>
+                      <span>{(routes.minimal_transfer && routes.minimal_transfer.length > 0) ? calculateTotalTime(dayRoutes.length > 0 ? (dayRoutes.find(d => d.day === selectedDay)?.segments || []) : routes.minimal_transfer) : 0} min total</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <span>~S${dayRoutes.length > 0 ? calculateTotalCost(dayRoutes.find(d => d.day === selectedDay)?.segments || []).toFixed(2) : calculateTotalCost(routes.minimal_transfer).toFixed(2)}</span>
+                      <span>~S${(routes.minimal_transfer && routes.minimal_transfer.length > 0) ? calculateTotalCost(dayRoutes.length > 0 ? (dayRoutes.find(d => d.day === selectedDay)?.segments || []) : routes.minimal_transfer).toFixed(2) : '0.00'}</span>
                     </div>
                   </div>
                 </CardTitle>
