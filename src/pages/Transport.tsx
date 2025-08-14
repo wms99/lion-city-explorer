@@ -191,18 +191,21 @@ const Transport = () => {
     }
   };
 
-  const generateFallbackOptions = (distance: number, from: string, to: string): TransportOption[] => {
+  const generateFallbackOptions = (distance: number, from: string, to: string, excludeWalking: boolean = false): TransportOption[] => {
     const options: TransportOption[] = [];
     
-    const walkTime = Math.ceil(distance * 12);
-    options.push({
-      type: 'walk',
-      duration: `${walkTime} min`,
-      cost: 'Free',
-      description: 'Walk directly to destination',
-      steps: [`Walk from ${from} to ${to}`],
-      walkingTime: `${walkTime} min`
-    });
+    // Only add walking option if not excluded (e.g., for comfort routes)
+    if (!excludeWalking) {
+      const walkTime = Math.ceil(distance * 12);
+      options.push({
+        type: 'walk',
+        duration: `${walkTime} min`,
+        cost: 'Free',
+        description: 'Walk directly to destination',
+        steps: [`Walk from ${from} to ${to}`],
+        walkingTime: `${walkTime} min`
+      });
+    }
 
     if (distance > 0.5) {
       const mrtTime = Math.ceil(distance * 8 + 10);
@@ -425,24 +428,30 @@ const Transport = () => {
       })
     }));
 
-    const comfortRoutes = segments.map(segment => ({
-      ...segment,
-      recommended: segment.transportOptions.find(opt => opt.type === 'grab') || 
-                  segment.transportOptions.find(opt => opt.type === 'tada') ||
-                  segment.transportOptions.find(opt => opt.type === 'taxi') ||
-                  segment.transportOptions.find(opt => opt.type === 'own_car') ||
-                  segment.transportOptions[0],
-      comfortChoice: {
-        selectedOption: segment.transportOptions.find(opt => opt.type === 'grab') || 
-                      segment.transportOptions.find(opt => opt.type === 'tada') ||
-                      segment.transportOptions.find(opt => opt.type === 'taxi') ||
-                      segment.transportOptions.find(opt => opt.type === 'own_car') ||
-                      segment.transportOptions[0],
-        availableOptions: segment.transportOptions.filter(opt => 
-          ['taxi', 'grab', 'tada', 'gojek', 'own_car'].includes(opt.type)
-        )
-      }
-    }));
+    const comfortRoutes = segments.map(segment => {
+      // Generate comfort-specific options (without walking)
+      const comfortOptions = generateFallbackOptions(segment.distance, segment.from, segment.to, true);
+      
+      // Recommended order: Grab > Tada > ComfortDelGro > Own Car > Gojek
+      const recommendedOption = comfortOptions.find(opt => opt.type === 'grab') || 
+                               comfortOptions.find(opt => opt.type === 'tada') ||
+                               comfortOptions.find(opt => opt.provider === 'ComfortDelGro') ||
+                               comfortOptions.find(opt => opt.type === 'own_car') ||
+                               comfortOptions.find(opt => opt.type === 'gojek') ||
+                               comfortOptions[0];
+
+      return {
+        ...segment,
+        transportOptions: comfortOptions,
+        recommended: recommendedOption,
+        comfortChoice: {
+          selectedOption: recommendedOption,
+          availableOptions: comfortOptions.filter(opt => 
+            ['taxi', 'grab', 'tada', 'gojek', 'own_car'].includes(opt.type)
+          )
+        }
+      };
+    });
 
     const minimalTransferRoutes = segments.map(segment => ({
       ...segment,
@@ -515,8 +524,15 @@ const Transport = () => {
     return segments.reduce((total, segment, index) => {
       let option = segment.recommended;
       
-      if (useComfortChoices && comfortChoices[index]?.selectedOption) {
-        option = comfortChoices[index].selectedOption;
+      // For comfort routes with day-based routing, check if we have comfort choices
+      if (useComfortChoices) {
+        // Find the matching segment in the main routes for comfort choice lookup
+        const mainRouteIndex = routes.comfort.findIndex(r => r.from === segment.from && r.to === segment.to);
+        if (mainRouteIndex >= 0 && comfortChoices[mainRouteIndex]?.selectedOption) {
+          option = comfortChoices[mainRouteIndex].selectedOption;
+        } else if (segment.comfortChoice?.selectedOption) {
+          option = segment.comfortChoice.selectedOption;
+        }
       }
       
       // Handle "Free" cost
@@ -535,8 +551,15 @@ const Transport = () => {
     return segments.reduce((total, segment, index) => {
       let option = segment.recommended;
       
-      if (useComfortChoices && comfortChoices[index]?.selectedOption) {
-        option = comfortChoices[index].selectedOption;
+      // For comfort routes with day-based routing, check if we have comfort choices
+      if (useComfortChoices) {
+        // Find the matching segment in the main routes for comfort choice lookup
+        const mainRouteIndex = routes.comfort.findIndex(r => r.from === segment.from && r.to === segment.to);
+        if (mainRouteIndex >= 0 && comfortChoices[mainRouteIndex]?.selectedOption) {
+          option = comfortChoices[mainRouteIndex].selectedOption;
+        } else if (segment.comfortChoice?.selectedOption) {
+          option = segment.comfortChoice.selectedOption;
+        }
       }
       
       // Extract number from duration string (e.g., "15 min" -> 15, "1 hr 30 min" -> 90)
@@ -653,8 +676,9 @@ const Transport = () => {
             comfortChoice: {
               selectedOption: transportOptions.find(opt => opt.type === 'grab') || 
                             transportOptions.find(opt => opt.type === 'tada') ||
-                            transportOptions.find(opt => opt.type === 'taxi') ||
+                            transportOptions.find(opt => opt.provider === 'ComfortDelGro') ||
                             transportOptions.find(opt => opt.type === 'own_car') ||
+                            transportOptions.find(opt => opt.type === 'gojek') ||
                             transportOptions[0],
               availableOptions: transportOptions.filter(opt => 
                 ['taxi', 'grab', 'tada', 'gojek', 'own_car'].includes(opt.type)
