@@ -474,6 +474,19 @@ const Transport = () => {
     const saved = JSON.parse(localStorage.getItem('singapore-itinerary') || '[]');
     console.log('Saved itinerary items:', saved);
     
+    // Get all unique days from the saved itinerary
+    const allDays = new Set<number>();
+    saved.forEach((item: ItineraryItem) => {
+      if (item.day) {
+        allDays.add(item.day);
+      }
+    });
+    
+    // If no days are assigned, create a default day 1
+    if (allDays.size === 0 && attractionList.length > 0) {
+      allDays.add(1);
+    }
+    
     // Group attractions by day, maintaining the order within each day
     const dayGroups: { [day: number]: (Attraction & { day?: number; order: number })[] } = {};
     
@@ -492,20 +505,22 @@ const Transport = () => {
     });
     
     console.log('Day groups with sorted order:', dayGroups);
+    console.log('All days from itinerary:', Array.from(allDays).sort());
     
-    // Create day routes based on the grouped and sorted attractions
+    // Create day routes for ALL days that exist in the itinerary
     const days: DayRoute[] = [];
     const today = new Date();
     
-    const dayNumbers = Object.keys(dayGroups).map(Number).sort((a, b) => a - b);
+    const dayNumbers = Array.from(allDays).sort((a, b) => a - b);
     
     for (const dayNum of dayNumbers) {
       const dayAttractions = dayGroups[dayNum] || [];
       console.log(`Day ${dayNum} attractions in order:`, dayAttractions.map(a => a.name));
       
-      if (dayAttractions.length >= 1) {
-        const daySegments: RouteSegment[] = [];
-        
+      const daySegments: RouteSegment[] = [];
+      
+      // Only generate transport segments if there are 2+ attractions
+      if (dayAttractions.length >= 2) {
         // Generate transport options for consecutive attractions in this day
         for (let j = 0; j < dayAttractions.length - 1; j++) {
           const fromAttraction = dayAttractions[j];
@@ -540,18 +555,23 @@ const Transport = () => {
             }
           });
         }
-        
-        const dayDate = new Date(today.getTime() + (dayNum - 1) * 24 * 60 * 60 * 1000);
-        days.push({
-          day: dayNum,
-          date: dayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
-          segments: daySegments
-        });
       }
+      
+      const dayDate = new Date(today.getTime() + (dayNum - 1) * 24 * 60 * 60 * 1000);
+      days.push({
+        day: dayNum,
+        date: dayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+        segments: daySegments
+      });
     }
     
-    console.log('Generated day routes from itinerary order:', days);
+    console.log('Generated day routes for all itinerary days:', days);
     setDayRoutes(days);
+    
+    // Set the selected day to the first day if not already set
+    if (days.length > 0 && !dayNumbers.includes(selectedDay)) {
+      setSelectedDay(days[0].day);
+    }
   };
 
   if (savedItems.length === 0) {
@@ -680,40 +700,110 @@ const Transport = () => {
                 )}
               </CardHeader>
               <CardContent className="space-y-4">
-                {(dayRoutes.length > 0 ? (dayRoutes.find(d => d.day === selectedDay)?.segments || []) : routes.budget).map((segment, index) => {
-                  // Get the budget option for this segment
-                  const budgetSegment = routes.budget.find(r => r.from === segment.from && r.to === segment.to) || segment;
-                  
-                  return (
+                {dayRoutes.length > 0 ? (
+                  // Day-based routing
+                  (() => {
+                    const currentDayRoute = dayRoutes.find(d => d.day === selectedDay);
+                    const daySegments = currentDayRoute?.segments || [];
+                    
+                    if (daySegments.length === 0) {
+                      // Show single destination message for days with only one attraction
+                      const saved = JSON.parse(localStorage.getItem('singapore-itinerary') || '[]');
+                      const dayAttractions = saved.filter((item: ItineraryItem) => item.day === selectedDay);
+                      
+                      return (
+                        <div className="text-center py-8">
+                          <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                          <h3 className="text-lg font-medium mb-2">Single Destination Day</h3>
+                          <p className="text-muted-foreground mb-4">
+                            {dayAttractions.length === 1 
+                              ? `You have planned to visit ${dayAttractions[0].name} on this day.`
+                              : "This day has only one planned destination."
+                            }
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            No transport routes needed within the day. Consider adding more attractions for route planning.
+                          </p>
+                        </div>
+                      );
+                    }
+                    
+                    return daySegments.map((segment, index) => {
+                      // Get the budget option for this segment
+                      const budgetSegment = routes.budget.find(r => r.from === segment.from && r.to === segment.to) || segment;
+                      
+                      return (
+                        <div key={index} className="border border-border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
+                                {index + 1}
+                              </div>
+                              <span className="font-medium">{budgetSegment.from}</span>
+                              <span className="text-muted-foreground">→</span>
+                              <span className="font-medium">{budgetSegment.to}</span>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {budgetSegment.distance.toFixed(1)} km
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center space-x-4 mb-2">
+                            <div className={`w-8 h-8 ${getTransportColor(budgetSegment.recommended.type)} rounded-lg flex items-center justify-center text-white`}>
+                              {getTransportIcon(budgetSegment.recommended.type)}
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-medium">{budgetSegment.recommended.description}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {budgetSegment.recommended.duration} • {budgetSegment.recommended.cost}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="ml-12 space-y-1">
+                            {budgetSegment.recommended.steps.map((step, stepIndex) => (
+                              <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
+                                <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
+                                <span>{step}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()
+                ) : (
+                  // Fallback to full route when no day routes available
+                  routes.budget.map((segment, index) => (
                     <div key={index} className="border border-border rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center space-x-2">
                           <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
                             {index + 1}
                           </div>
-                          <span className="font-medium">{budgetSegment.from}</span>
+                          <span className="font-medium">{segment.from}</span>
                           <span className="text-muted-foreground">→</span>
-                          <span className="font-medium">{budgetSegment.to}</span>
+                          <span className="font-medium">{segment.to}</span>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {budgetSegment.distance.toFixed(1)} km
+                          {segment.distance.toFixed(1)} km
                         </div>
                       </div>
                       
                       <div className="flex items-center space-x-4 mb-2">
-                        <div className={`w-8 h-8 ${getTransportColor(budgetSegment.recommended.type)} rounded-lg flex items-center justify-center text-white`}>
-                          {getTransportIcon(budgetSegment.recommended.type)}
+                        <div className={`w-8 h-8 ${getTransportColor(segment.recommended.type)} rounded-lg flex items-center justify-center text-white`}>
+                          {getTransportIcon(segment.recommended.type)}
                         </div>
                         <div className="flex-1">
-                          <div className="font-medium">{budgetSegment.recommended.description}</div>
+                          <div className="font-medium">{segment.recommended.description}</div>
                           <div className="text-sm text-muted-foreground">
-                            {budgetSegment.recommended.duration} • {budgetSegment.recommended.cost}
+                            {segment.recommended.duration} • {segment.recommended.cost}
                           </div>
                         </div>
                       </div>
                       
                       <div className="ml-12 space-y-1">
-                        {budgetSegment.recommended.steps.map((step, stepIndex) => (
+                        {segment.recommended.steps.map((step, stepIndex) => (
                           <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
                             <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
                             <span>{step}</span>
@@ -721,8 +811,8 @@ const Transport = () => {
                         ))}
                       </div>
                     </div>
-                  );
-                })}
+                  ))
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -780,110 +870,246 @@ const Transport = () => {
                 )}
               </CardHeader>
               <CardContent className="space-y-4">
-                {(dayRoutes.length > 0 ? (dayRoutes.find(d => d.day === selectedDay)?.segments || []) : routes.comfort).map((segment, index) => {
-                  // Find the actual segment index in the full routes array for comfort choices
-                  const actualIndex = routes.comfort.findIndex(r => r.from === segment.from && r.to === segment.to);
-                  const currentChoice = comfortChoices[actualIndex];
-                  const displayOption = currentChoice?.selectedOption || segment.recommended;
-                  
-                  return (
-                    <div key={`${segment.from}-${segment.to}`} className="border border-border rounded-lg p-4 space-y-4">
-                      {/* Route Header */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-secondary text-secondary-foreground rounded-lg flex items-center justify-center text-sm font-medium">
-                            {index + 1}
-                          </div>
-                          <div>
-                            <div className="font-medium text-base">{segment.from} → {segment.to}</div>
-                            <div className="text-sm text-muted-foreground">{segment.distance.toFixed(1)} km</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Transport Option Selector */}
-                      {segment.comfortChoice && segment.comfortChoice.availableOptions.length > 0 && (
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Choose transport:</label>
-                          <Select 
-                            value={displayOption.type + (displayOption.provider || '')} 
-                            onValueChange={(value) => {
-                              const option = segment.comfortChoice?.availableOptions.find(opt => 
-                                (opt.type + (opt.provider || '')) === value
-                              );
-                              if (option) {
-                                // Use the actual index for comfort choices
-                                handleComfortChoice(actualIndex, option);
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select transport option" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-background border shadow-lg z-50">
-                              {segment.comfortChoice.availableOptions.map((option, optionIndex) => (
-                                <SelectItem 
-                                  key={optionIndex} 
-                                  value={option.type + (option.provider || '')}
-                                  className="cursor-pointer hover:bg-accent"
-                                >
-                                  <div className="flex items-center justify-between w-full">
-                                    <div className="flex items-center space-x-3">
-                                      <div className={`w-5 h-5 ${getTransportColor(option.type)} rounded flex items-center justify-center text-white`}>
-                                        {getTransportIcon(option.type)}
-                                      </div>
-                                      <span className="font-medium">{option.description}</span>
-                                    </div>
-                                    <div className="text-sm text-muted-foreground ml-4">
-                                      {option.duration} • {option.cost}
-                                    </div>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
+                {dayRoutes.length > 0 ? (
+                  // Day-based routing for comfort
+                  (() => {
+                    const currentDayRoute = dayRoutes.find(d => d.day === selectedDay);
+                    const daySegments = currentDayRoute?.segments || [];
+                    
+                    if (daySegments.length === 0) {
+                      // Show single destination message for days with only one attraction
+                      const saved = JSON.parse(localStorage.getItem('singapore-itinerary') || '[]');
+                      const dayAttractions = saved.filter((item: ItineraryItem) => item.day === selectedDay);
                       
-                      {/* Selected Option Summary */}
-                      <div className="bg-muted/30 rounded-lg p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className={`w-6 h-6 ${getTransportColor(displayOption.type)} rounded-lg flex items-center justify-center text-white`}>
-                              {getTransportIcon(displayOption.type)}
-                            </div>
-                            <div>
-                              <div className="font-medium">{displayOption.description}</div>
-                              {displayOption.provider && (
-                                <div className="text-xs text-muted-foreground">{displayOption.provider}</div>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-medium">{displayOption.cost}</div>
-                            <div className="text-sm text-muted-foreground">{displayOption.duration}</div>
-                          </div>
+                      return (
+                        <div className="text-center py-8">
+                          <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                          <h3 className="text-lg font-medium mb-2">Single Destination Day</h3>
+                          <p className="text-muted-foreground mb-4">
+                            {dayAttractions.length === 1 
+                              ? `You have planned to visit ${dayAttractions[0].name} on this day.`
+                              : "This day has only one planned destination."
+                            }
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            No transport routes needed within the day. Consider adding more attractions for route planning.
+                          </p>
                         </div>
-                        
-                        {/* Key Features (simplified) */}
-                        {displayOption.features && displayOption.features.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {displayOption.features.slice(0, 3).map((feature, featureIndex) => (
-                              <Badge key={featureIndex} variant="secondary" className="text-xs">
-                                {feature}
-                              </Badge>
-                            ))}
-                            {displayOption.features.length > 3 && (
-                              <Badge variant="secondary" className="text-xs">
-                                +{displayOption.features.length - 3} more
-                              </Badge>
+                      );
+                    }
+                    
+                    return daySegments.map((segment, index) => {
+                      // Find the actual segment index in the full routes array for comfort choices
+                      const actualIndex = routes.comfort.findIndex(r => r.from === segment.from && r.to === segment.to);
+                      const currentChoice = comfortChoices[actualIndex];
+                      const displayOption = currentChoice?.selectedOption || segment.recommended;
+                      
+                      return (
+                        <div key={`${segment.from}-${segment.to}`} className="border border-border rounded-lg p-4 space-y-4">
+                          {/* Route Header */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 bg-secondary text-secondary-foreground rounded-lg flex items-center justify-center text-sm font-medium">
+                                {index + 1}
+                              </div>
+                              <div>
+                                <div className="font-medium text-base">{segment.from} → {segment.to}</div>
+                                <div className="text-sm text-muted-foreground">{segment.distance.toFixed(1)} km</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Transport Option Selector */}
+                          {segment.comfortChoice && segment.comfortChoice.availableOptions.length > 0 && (
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Choose transport:</label>
+                              <Select 
+                                value={displayOption.type + (displayOption.provider || '')} 
+                                onValueChange={(value) => {
+                                  const option = segment.comfortChoice?.availableOptions.find(opt => 
+                                    (opt.type + (opt.provider || '')) === value
+                                  );
+                                  if (option) {
+                                    // Use the actual index for comfort choices
+                                    handleComfortChoice(actualIndex, option);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select transport option" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-background border shadow-lg z-50">
+                                  {segment.comfortChoice.availableOptions.map((option, optionIndex) => (
+                                    <SelectItem 
+                                      key={optionIndex} 
+                                      value={option.type + (option.provider || '')}
+                                      className="cursor-pointer hover:bg-accent"
+                                    >
+                                      <div className="flex items-center justify-between w-full">
+                                        <div className="flex items-center space-x-3">
+                                          <div className={`w-5 h-5 ${getTransportColor(option.type)} rounded flex items-center justify-center text-white`}>
+                                            {getTransportIcon(option.type)}
+                                          </div>
+                                          <span className="font-medium">{option.description}</span>
+                                        </div>
+                                        <div className="text-sm text-muted-foreground ml-4">
+                                          {option.duration} • {option.cost}
+                                        </div>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                          
+                          {/* Selected Option Summary */}
+                          <div className="bg-muted/30 rounded-lg p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className={`w-6 h-6 ${getTransportColor(displayOption.type)} rounded-lg flex items-center justify-center text-white`}>
+                                  {getTransportIcon(displayOption.type)}
+                                </div>
+                                <div>
+                                  <div className="font-medium">{displayOption.description}</div>
+                                  {displayOption.provider && (
+                                    <div className="text-xs text-muted-foreground">{displayOption.provider}</div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-medium">{displayOption.cost}</div>
+                                <div className="text-sm text-muted-foreground">{displayOption.duration}</div>
+                              </div>
+                            </div>
+                            
+                            {/* Key Features (simplified) */}
+                            {displayOption.features && displayOption.features.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {displayOption.features.slice(0, 3).map((feature, featureIndex) => (
+                                  <Badge key={featureIndex} variant="secondary" className="text-xs">
+                                    {feature}
+                                  </Badge>
+                                ))}
+                                {displayOption.features.length > 3 && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    +{displayOption.features.length - 3} more
+                                  </Badge>
+                                )}
+                              </div>
                             )}
                           </div>
+                        </div>
+                      );
+                    });
+                  })()
+                ) : (
+                  // Fallback to full route when no day routes available
+                  routes.comfort.map((segment, index) => {
+                    // Find the actual segment index in the full routes array for comfort choices
+                    const actualIndex = routes.comfort.findIndex(r => r.from === segment.from && r.to === segment.to);
+                    const currentChoice = comfortChoices[actualIndex];
+                    const displayOption = currentChoice?.selectedOption || segment.recommended;
+                    
+                    return (
+                      <div key={`${segment.from}-${segment.to}`} className="border border-border rounded-lg p-4 space-y-4">
+                        {/* Route Header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-secondary text-secondary-foreground rounded-lg flex items-center justify-center text-sm font-medium">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <div className="font-medium text-base">{segment.from} → {segment.to}</div>
+                              <div className="text-sm text-muted-foreground">{segment.distance.toFixed(1)} km</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Transport Option Selector */}
+                        {segment.comfortChoice && segment.comfortChoice.availableOptions.length > 0 && (
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Choose transport:</label>
+                            <Select 
+                              value={displayOption.type + (displayOption.provider || '')} 
+                              onValueChange={(value) => {
+                                const option = segment.comfortChoice?.availableOptions.find(opt => 
+                                  (opt.type + (opt.provider || '')) === value
+                                );
+                                if (option) {
+                                  // Use the actual index for comfort choices
+                                  handleComfortChoice(actualIndex, option);
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select transport option" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-background border shadow-lg z-50">
+                                {segment.comfortChoice.availableOptions.map((option, optionIndex) => (
+                                  <SelectItem 
+                                    key={optionIndex} 
+                                    value={option.type + (option.provider || '')}
+                                    className="cursor-pointer hover:bg-accent"
+                                  >
+                                    <div className="flex items-center justify-between w-full">
+                                      <div className="flex items-center space-x-3">
+                                        <div className={`w-5 h-5 ${getTransportColor(option.type)} rounded flex items-center justify-center text-white`}>
+                                          {getTransportIcon(option.type)}
+                                        </div>
+                                        <span className="font-medium">{option.description}</span>
+                                      </div>
+                                      <div className="text-sm text-muted-foreground ml-4">
+                                        {option.duration} • {option.cost}
+                                      </div>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         )}
+                        
+                        {/* Selected Option Summary */}
+                        <div className="bg-muted/30 rounded-lg p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-6 h-6 ${getTransportColor(displayOption.type)} rounded-lg flex items-center justify-center text-white`}>
+                                {getTransportIcon(displayOption.type)}
+                              </div>
+                              <div>
+                                <div className="font-medium">{displayOption.description}</div>
+                                {displayOption.provider && (
+                                  <div className="text-xs text-muted-foreground">{displayOption.provider}</div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-medium">{displayOption.cost}</div>
+                              <div className="text-sm text-muted-foreground">{displayOption.duration}</div>
+                            </div>
+                          </div>
+                          
+                          {/* Key Features (simplified) */}
+                          {displayOption.features && displayOption.features.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {displayOption.features.slice(0, 3).map((feature, featureIndex) => (
+                                <Badge key={featureIndex} variant="secondary" className="text-xs">
+                                  {feature}
+                                </Badge>
+                              ))}
+                              {displayOption.features.length > 3 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  +{displayOption.features.length - 3} more
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -940,52 +1166,130 @@ const Transport = () => {
                 )}
               </CardHeader>
               <CardContent className="space-y-4">
-                {(dayRoutes.length > 0 ? (dayRoutes.find(d => d.day === selectedDay)?.segments || []) : routes.minimal_transfer).map((segment, index) => {
-                  // Get the minimal transfer option for this segment
-                  const minimalTransferSegment = routes.minimal_transfer.find(r => r.from === segment.from && r.to === segment.to) || segment;
-                  
-                  return (
-                    <div key={index} className="border border-border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-6 h-6 bg-accent text-accent-foreground rounded-full flex items-center justify-center text-xs font-medium">
-                            {index + 1}
-                          </div>
-                          <span className="font-medium">{minimalTransferSegment.from}</span>
-                          <span className="text-muted-foreground">→</span>
-                          <span className="font-medium">{minimalTransferSegment.to}</span>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {minimalTransferSegment.distance.toFixed(1)} km
-                        </div>
-                      </div>
+                {dayRoutes.length > 0 ? (
+                  // Day-based routing for minimal transfer
+                  (() => {
+                    const currentDayRoute = dayRoutes.find(d => d.day === selectedDay);
+                    const daySegments = currentDayRoute?.segments || [];
+                    
+                    if (daySegments.length === 0) {
+                      // Show single destination message for days with only one attraction
+                      const saved = JSON.parse(localStorage.getItem('singapore-itinerary') || '[]');
+                      const dayAttractions = saved.filter((item: ItineraryItem) => item.day === selectedDay);
                       
-                      <div className="flex items-center space-x-4 mb-2">
-                        <div className={`w-8 h-8 ${getTransportColor(minimalTransferSegment.recommended.type)} rounded-lg flex items-center justify-center text-white`}>
-                          {getTransportIcon(minimalTransferSegment.recommended.type)}
+                      return (
+                        <div className="text-center py-8">
+                          <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                          <h3 className="text-lg font-medium mb-2">Single Destination Day</h3>
+                          <p className="text-muted-foreground mb-4">
+                            {dayAttractions.length === 1 
+                              ? `You have planned to visit ${dayAttractions[0].name} on this day.`
+                              : "This day has only one planned destination."
+                            }
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            No transport routes needed within the day. Consider adding more attractions for route planning.
+                          </p>
                         </div>
-                        <div className="flex-1">
-                          <div className="font-medium">{minimalTransferSegment.recommended.description}</div>
+                      );
+                    }
+                    
+                    return daySegments.map((segment, index) => {
+                      // Get the minimal transfer option for this segment
+                      const minimalTransferSegment = routes.minimal_transfer.find(r => r.from === segment.from && r.to === segment.to) || segment;
+                      
+                      return (
+                        <div key={index} className="border border-border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-6 h-6 bg-accent text-accent-foreground rounded-full flex items-center justify-center text-xs font-medium">
+                                {index + 1}
+                              </div>
+                              <span className="font-medium">{minimalTransferSegment.from}</span>
+                              <span className="text-muted-foreground">→</span>
+                              <span className="font-medium">{minimalTransferSegment.to}</span>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {minimalTransferSegment.distance.toFixed(1)} km
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center space-x-4 mb-2">
+                            <div className={`w-8 h-8 ${getTransportColor(minimalTransferSegment.recommended.type)} rounded-lg flex items-center justify-center text-white`}>
+                              {getTransportIcon(minimalTransferSegment.recommended.type)}
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-medium">{minimalTransferSegment.recommended.description}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {minimalTransferSegment.recommended.duration} • {minimalTransferSegment.recommended.cost}
+                              </div>
+                              <div className="text-xs text-green-600 mt-1">
+                                ✓ {getTransferBenefit(minimalTransferSegment.recommended)}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="ml-12 space-y-1">
+                            {minimalTransferSegment.recommended.steps.map((step, stepIndex) => (
+                              <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
+                                <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
+                                <span>{step}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()
+                ) : (
+                  // Fallback to full route when no day routes available
+                  routes.minimal_transfer.map((segment, index) => {
+                    // Get the minimal transfer option for this segment
+                    const minimalTransferSegment = routes.minimal_transfer.find(r => r.from === segment.from && r.to === segment.to) || segment;
+                    
+                    return (
+                      <div key={index} className="border border-border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-6 h-6 bg-accent text-accent-foreground rounded-full flex items-center justify-center text-xs font-medium">
+                              {index + 1}
+                            </div>
+                            <span className="font-medium">{minimalTransferSegment.from}</span>
+                            <span className="text-muted-foreground">→</span>
+                            <span className="font-medium">{minimalTransferSegment.to}</span>
+                          </div>
                           <div className="text-sm text-muted-foreground">
-                            {minimalTransferSegment.recommended.duration} • {minimalTransferSegment.recommended.cost}
-                          </div>
-                          <div className="text-xs text-green-600 mt-1">
-                            ✓ {getTransferBenefit(minimalTransferSegment.recommended)}
+                            {minimalTransferSegment.distance.toFixed(1)} km
                           </div>
                         </div>
-                      </div>
-                      
-                      <div className="ml-12 space-y-1">
-                        {minimalTransferSegment.recommended.steps.map((step, stepIndex) => (
-                          <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
-                            <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
-                            <span>{step}</span>
+                        
+                        <div className="flex items-center space-x-4 mb-2">
+                          <div className={`w-8 h-8 ${getTransportColor(minimalTransferSegment.recommended.type)} rounded-lg flex items-center justify-center text-white`}>
+                            {getTransportIcon(minimalTransferSegment.recommended.type)}
                           </div>
-                        ))}
+                          <div className="flex-1">
+                            <div className="font-medium">{minimalTransferSegment.recommended.description}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {minimalTransferSegment.recommended.duration} • {minimalTransferSegment.recommended.cost}
+                            </div>
+                            <div className="text-xs text-green-600 mt-1">
+                              ✓ {getTransferBenefit(minimalTransferSegment.recommended)}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="ml-12 space-y-1">
+                          {minimalTransferSegment.recommended.steps.map((step, stepIndex) => (
+                            <div key={stepIndex} className="text-sm text-muted-foreground flex items-center space-x-2">
+                              <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
+                              <span>{step}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </CardContent>
             </Card>
           </TabsContent>
