@@ -43,18 +43,27 @@ class OneMapService {
   async getRoute(options: RouteOptions): Promise<OneMapRouteResponse | null> {
     try {
       const { route, start, end } = options;
-      const url = `${this.baseUrl}/${route}/route?start=${start}&end=${end}`;
       
-      const response = await fetch(url);
+      // OneMap API doesn't require authentication for basic routing
+      // But has rate limits, so we need to handle errors gracefully
+      const url = `https://www.onemap.gov.sg/api/public/${route}/route?start=${start}&end=${end}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
       if (!response.ok) {
-        console.error('OneMap routing error:', response.statusText);
+        console.warn(`OneMap ${route} routing unavailable, using fallback calculations`);
         return null;
       }
       
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Error fetching route from OneMap:', error);
+      console.warn('OneMap service temporarily unavailable, using fallback calculations');
       return null;
     }
   }
