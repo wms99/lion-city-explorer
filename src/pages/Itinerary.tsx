@@ -61,6 +61,35 @@ const Itinerary = () => {
   const [selectedDay, setSelectedDay] = useState<number>(1);
   const [daySchedules, setDaySchedules] = useState<DaySchedule[]>([]);
 
+  // Sync selected day with localStorage and other tabs
+  useEffect(() => {
+    const savedSelectedDay = localStorage.getItem('transport-selected-day');
+    if (savedSelectedDay) {
+      setSelectedDay(parseInt(savedSelectedDay));
+    }
+  }, []);
+
+  const handleDayChange = (day: number) => {
+    setSelectedDay(day);
+    localStorage.setItem('transport-selected-day', day.toString());
+    // Dispatch event to sync with Transport tab
+    window.dispatchEvent(new CustomEvent('day-changed', { detail: { day } }));
+  };
+
+  useEffect(() => {
+    const handleDayChangeFromOtherTab = (e: CustomEvent) => {
+      if (e.detail?.day) {
+        setSelectedDay(e.detail.day);
+      }
+    };
+
+    window.addEventListener('day-changed', handleDayChangeFromOtherTab as EventListener);
+    
+    return () => {
+      window.removeEventListener('day-changed', handleDayChangeFromOtherTab as EventListener);
+    };
+  }, []);
+
   useEffect(() => {
     const loadItinerary = () => {
       const saved = JSON.parse(localStorage.getItem('singapore-itinerary') || '[]');
@@ -290,6 +319,9 @@ const Itinerary = () => {
     setSavedItems(newItems);
     localStorage.setItem('singapore-itinerary', JSON.stringify(newItems));
     
+    // Dispatch event to notify Transport tab about changes
+    window.dispatchEvent(new CustomEvent('itinerary-updated'));
+    
     // Regenerate schedules with proper timing
     const freshSchedules = generateDaySchedules(newItems);
     setDaySchedules(freshSchedules);
@@ -319,6 +351,9 @@ const Itinerary = () => {
 
     setSavedItems(newItems);
     localStorage.setItem('singapore-itinerary', JSON.stringify(newItems));
+    
+    // Dispatch event to notify Transport tab about changes
+    window.dispatchEvent(new CustomEvent('itinerary-updated'));
     
     // Regenerate schedules
     const freshSchedules = generateDaySchedules(newItems);
@@ -740,7 +775,7 @@ const Itinerary = () => {
                           key={day.day}
                           variant={selectedDay === day.day ? 'default' : 'outline'}
                           size="sm"
-                          onClick={() => setSelectedDay(day.day)}
+                          onClick={() => handleDayChange(day.day)}
                           className="flex flex-col h-auto py-2 px-3"
                         >
                           <span className="font-medium">Day {day.day}</span>

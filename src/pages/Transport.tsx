@@ -83,6 +83,35 @@ const Transport = () => {
   const [dayRoutes, setDayRoutes] = useState<DayRoute[]>([]);
   const [selectedDay, setSelectedDay] = useState<number>(1);
 
+  // Sync selected day with localStorage for cross-tab consistency
+  useEffect(() => {
+    const savedSelectedDay = localStorage.getItem('transport-selected-day');
+    if (savedSelectedDay) {
+      setSelectedDay(parseInt(savedSelectedDay));
+    }
+  }, []);
+
+  const handleDayChange = (day: number) => {
+    setSelectedDay(day);
+    localStorage.setItem('transport-selected-day', day.toString());
+    // Dispatch event to sync with Itinerary tab
+    window.dispatchEvent(new CustomEvent('day-changed', { detail: { day } }));
+  };
+
+  useEffect(() => {
+    const handleDayChangeFromOtherTab = (e: CustomEvent) => {
+      if (e.detail?.day) {
+        setSelectedDay(e.detail.day);
+      }
+    };
+
+    window.addEventListener('day-changed', handleDayChangeFromOtherTab as EventListener);
+    
+    return () => {
+      window.removeEventListener('day-changed', handleDayChangeFromOtherTab as EventListener);
+    };
+  }, []);
+
   useEffect(() => {
     const loadItinerary = () => {
       const saved = JSON.parse(localStorage.getItem('singapore-itinerary') || '[]');
@@ -449,7 +478,9 @@ const Transport = () => {
         option = comfortChoices[index].selectedOption;
       }
       
-      const cost = parseFloat(option.cost.replace(/[^0-9.]/g, '') || '0');
+      // Extract first number from cost string (e.g., "S$3.50 - S$8.00" -> 3.50)
+      const costMatch = option.cost.match(/\d+\.?\d*/);
+      const cost = costMatch ? parseFloat(costMatch[0]) : 0;
       return total + cost;
     }, 0);
   };
@@ -462,7 +493,9 @@ const Transport = () => {
         option = comfortChoices[index].selectedOption;
       }
       
-      const time = parseInt(option.duration);
+      // Extract number from duration string (e.g., "15 min" -> 15)
+      const timeMatch = option.duration.match(/\d+/);
+      const time = timeMatch ? parseInt(timeMatch[0]) : 0;
       return total + time;
     }, 0);
   };
@@ -568,9 +601,11 @@ const Transport = () => {
     console.log('Generated day routes for all itinerary days:', days);
     setDayRoutes(days);
     
-    // Set the selected day to the first day if not already set
+    // Set the selected day to the first day if not already set or if current day doesn't exist
     if (days.length > 0 && !dayNumbers.includes(selectedDay)) {
-      setSelectedDay(days[0].day);
+      const firstDay = days[0].day;
+      setSelectedDay(firstDay);
+      localStorage.setItem('transport-selected-day', firstDay.toString());
     }
   };
 
@@ -649,8 +684,8 @@ const Transport = () => {
           </TabsList>
 
           <TabsContent value="budget" className="space-y-4">
-            {/* Day Filter Card */}
-            {dayRoutes.length > 0 && (
+            {/* Day Filter Card - Always show if there are multiple days */}
+            {dayRoutes.length > 1 && (
               <Card className="shadow-card">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg">Select Day</CardTitle>
@@ -662,7 +697,7 @@ const Transport = () => {
                         key={day.day}
                         variant={selectedDay === day.day ? 'default' : 'outline'}
                         size="sm"
-                        onClick={() => setSelectedDay(day.day)}
+                        onClick={() => handleDayChange(day.day)}
                         className="flex flex-col h-auto py-2 px-3"
                       >
                         <span className="font-medium">Day {day.day}</span>
@@ -714,15 +749,22 @@ const Transport = () => {
                       return (
                         <div className="text-center py-8">
                           <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                          <h3 className="text-lg font-medium mb-2">Single Destination Day</h3>
+                          <h3 className="text-lg font-medium mb-2">
+                            {dayAttractions.length === 0 ? `No Transport for Day ${selectedDay}` : 'Single Destination Day'}
+                          </h3>
                           <p className="text-muted-foreground mb-4">
-                            {dayAttractions.length === 1 
-                              ? `You have planned to visit ${dayAttractions[0].name} on this day.`
-                              : "This day has only one planned destination."
+                            {dayAttractions.length === 0 
+                              ? `No attractions are planned for Day ${selectedDay}.`
+                              : dayAttractions.length === 1 
+                                ? `You have planned to visit ${dayAttractions[0].name} on this day.`
+                                : "This day has only one planned destination."
                             }
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            No transport routes needed within the day. Consider adding more attractions for route planning.
+                            {dayAttractions.length === 0 
+                              ? "Add attractions to this day in the Itinerary tab to see transport options."
+                              : "No transport routes needed within the day. Consider adding more attractions for route planning."
+                            }
                           </p>
                         </div>
                       );
@@ -819,7 +861,7 @@ const Transport = () => {
 
           <TabsContent value="comfort" className="space-y-4">
             {/* Day Filter Card */}
-            {dayRoutes.length > 0 && (
+            {dayRoutes.length > 1 && (
               <Card className="shadow-card">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg">Select Day</CardTitle>
@@ -831,7 +873,7 @@ const Transport = () => {
                         key={day.day}
                         variant={selectedDay === day.day ? 'default' : 'outline'}
                         size="sm"
-                        onClick={() => setSelectedDay(day.day)}
+                        onClick={() => handleDayChange(day.day)}
                         className="flex flex-col h-auto py-2 px-3"
                       >
                         <span className="font-medium">Day {day.day}</span>
@@ -884,15 +926,22 @@ const Transport = () => {
                       return (
                         <div className="text-center py-8">
                           <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                          <h3 className="text-lg font-medium mb-2">Single Destination Day</h3>
+                          <h3 className="text-lg font-medium mb-2">
+                            {dayAttractions.length === 0 ? `No Transport for Day ${selectedDay}` : 'Single Destination Day'}
+                          </h3>
                           <p className="text-muted-foreground mb-4">
-                            {dayAttractions.length === 1 
-                              ? `You have planned to visit ${dayAttractions[0].name} on this day.`
-                              : "This day has only one planned destination."
+                            {dayAttractions.length === 0 
+                              ? `No attractions are planned for Day ${selectedDay}.`
+                              : dayAttractions.length === 1 
+                                ? `You have planned to visit ${dayAttractions[0].name} on this day.`
+                                : "This day has only one planned destination."
                             }
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            No transport routes needed within the day. Consider adding more attractions for route planning.
+                            {dayAttractions.length === 0 
+                              ? "Add attractions to this day in the Itinerary tab to see transport options."
+                              : "No transport routes needed within the day. Consider adding more attractions for route planning."
+                            }
                           </p>
                         </div>
                       );
@@ -1116,7 +1165,7 @@ const Transport = () => {
 
           <TabsContent value="minimal_transfer" className="space-y-4">
             {/* Day Filter Card */}
-            {dayRoutes.length > 0 && (
+            {dayRoutes.length > 1 && (
               <Card className="shadow-card">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg">Select Day</CardTitle>
@@ -1128,7 +1177,7 @@ const Transport = () => {
                         key={day.day}
                         variant={selectedDay === day.day ? 'default' : 'outline'}
                         size="sm"
-                        onClick={() => setSelectedDay(day.day)}
+                        onClick={() => handleDayChange(day.day)}
                         className="flex flex-col h-auto py-2 px-3"
                       >
                         <span className="font-medium">Day {day.day}</span>
@@ -1180,15 +1229,22 @@ const Transport = () => {
                       return (
                         <div className="text-center py-8">
                           <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                          <h3 className="text-lg font-medium mb-2">Single Destination Day</h3>
+                          <h3 className="text-lg font-medium mb-2">
+                            {dayAttractions.length === 0 ? `No Transport for Day ${selectedDay}` : 'Single Destination Day'}
+                          </h3>
                           <p className="text-muted-foreground mb-4">
-                            {dayAttractions.length === 1 
-                              ? `You have planned to visit ${dayAttractions[0].name} on this day.`
-                              : "This day has only one planned destination."
+                            {dayAttractions.length === 0 
+                              ? `No attractions are planned for Day ${selectedDay}.`
+                              : dayAttractions.length === 1 
+                                ? `You have planned to visit ${dayAttractions[0].name} on this day.`
+                                : "This day has only one planned destination."
                             }
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            No transport routes needed within the day. Consider adding more attractions for route planning.
+                            {dayAttractions.length === 0 
+                              ? "Add attractions to this day in the Itinerary tab to see transport options."
+                              : "No transport routes needed within the day. Consider adding more attractions for route planning."
+                            }
                           </p>
                         </div>
                       );
