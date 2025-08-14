@@ -96,9 +96,9 @@ const Transport = () => {
       setAttractions(attractionDetails);
       
       if (attractionDetails.length >= 2) {
-        generateRoutes(attractionDetails).then(() => {
+        generateRoutes(attractionDetails).then(async () => {
           // Generate day routes after main routes are created
-          setTimeout(() => generateDayRoutes(attractionDetails), 100);
+          await generateDayRoutes(attractionDetails);
         }).catch(console.error);
       }
     };
@@ -439,7 +439,7 @@ const Transport = () => {
     }, 0);
   };
 
-  const generateDayRoutes = (attractionList: Attraction[]) => {
+  const generateDayRoutes = async (attractionList: Attraction[]) => {
     console.log('Generating day routes for', attractionList.length, 'attractions');
     
     // Get the saved itinerary items to check if they have day assignments
@@ -471,19 +471,39 @@ const Transport = () => {
         if (dayAttractions.length >= 2) {
           const daySegments: RouteSegment[] = [];
           
-          // Create segments for consecutive attractions in this day
+          // Generate transport options directly for each day's route segments
           for (let j = 0; j < dayAttractions.length - 1; j++) {
             const fromAttraction = dayAttractions[j];
             const toAttraction = dayAttractions[j + 1];
             
-            // Find the corresponding segment in the main routes
-            const segmentIndex = routes.comfort.findIndex(segment => 
-              segment.from === fromAttraction.name && segment.to === toAttraction.name
+            const distance = calculateDistance(
+              fromAttraction.coordinates.lat, fromAttraction.coordinates.lng,
+              toAttraction.coordinates.lat, toAttraction.coordinates.lng
             );
             
-            if (segmentIndex !== -1) {
-              daySegments.push(routes.comfort[segmentIndex]);
-            }
+            const transportOptions = await generateTransportOptions(
+              distance, 
+              fromAttraction.name, 
+              toAttraction.name,
+              fromAttraction.coordinates,
+              toAttraction.coordinates
+            );
+            
+            daySegments.push({
+              from: fromAttraction.name,
+              to: toAttraction.name,
+              fromCoords: fromAttraction.coordinates,
+              toCoords: toAttraction.coordinates,
+              distance,
+              transportOptions,
+              recommended: transportOptions[0] || {
+                type: 'walk',
+                duration: `${Math.ceil(distance * 12)} min`,
+                cost: 'Free',
+                description: 'Walk directly',
+                steps: [`Walk from ${fromAttraction.name} to ${toAttraction.name}`]
+              }
+            });
           }
           
           if (daySegments.length > 0) {
