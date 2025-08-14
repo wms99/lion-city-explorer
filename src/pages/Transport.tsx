@@ -684,8 +684,8 @@ const Transport = () => {
           </TabsList>
 
           <TabsContent value="budget" className="space-y-4">
-            {/* Day Filter Card - Always show if there are multiple days */}
-            {dayRoutes.length > 1 && (
+            {/* Day Filter Card - Show when there are any planned days */}
+            {dayRoutes.length > 0 && (
               <Card className="shadow-card">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg">Select Day</CardTitle>
@@ -771,11 +771,13 @@ const Transport = () => {
                     }
                     
                     return daySegments.map((segment, index) => {
-                      // Get the budget option for this segment
-                      const budgetSegment = routes.budget.find(r => r.from === segment.from && r.to === segment.to) || segment;
+                      // Find the corresponding budget segment or use the current segment
+                      const budgetSegment = routes.budget.find(r => 
+                        r.from === segment.from && r.to === segment.to
+                      ) || segment;
                       
                       return (
-                        <div key={index} className="border border-border rounded-lg p-4">
+                        <div key={`${segment.from}-${segment.to}-${index}`} className="border border-border rounded-lg p-4">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center space-x-2">
                               <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
@@ -816,7 +818,7 @@ const Transport = () => {
                   })()
                 ) : (
                   // Fallback to full route when no day routes available
-                  routes.budget.map((segment, index) => (
+                  routes.budget.length > 0 ? routes.budget.map((segment, index) => (
                     <div key={index} className="border border-border rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center space-x-2">
@@ -853,7 +855,15 @@ const Transport = () => {
                         ))}
                       </div>
                     </div>
-                  ))
+                  )) : (
+                    <div className="text-center py-8">
+                      <Route className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-medium mb-2">No Transport Routes Available</h3>
+                      <p className="text-muted-foreground">
+                        Transport routes are still being generated. Please refresh the page if this persists.
+                      </p>
+                    </div>
+                  )
                 )}
               </CardContent>
             </Card>
@@ -861,7 +871,7 @@ const Transport = () => {
 
           <TabsContent value="comfort" className="space-y-4">
             {/* Day Filter Card */}
-            {dayRoutes.length > 1 && (
+            {dayRoutes.length > 0 && (
               <Card className="shadow-card">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg">Select Day</CardTitle>
@@ -1165,7 +1175,7 @@ const Transport = () => {
 
           <TabsContent value="minimal_transfer" className="space-y-4">
             {/* Day Filter Card */}
-            {dayRoutes.length > 1 && (
+            {dayRoutes.length > 0 && (
               <Card className="shadow-card">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg">Select Day</CardTitle>
