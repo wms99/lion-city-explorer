@@ -659,6 +659,9 @@ const Transport = () => {
             toAttraction.coordinates
           );
           
+          // Create separate transport options for different route types
+          const comfortOptions = generateFallbackOptions(distance, fromAttraction.name, toAttraction.name, true);
+          
           daySegments.push({
             from: fromAttraction.name,
             to: toAttraction.name,
@@ -674,13 +677,13 @@ const Transport = () => {
               steps: [`Walk from ${fromAttraction.name} to ${toAttraction.name}`]
             },
             comfortChoice: {
-              selectedOption: transportOptions.find(opt => opt.type === 'grab') || 
-                            transportOptions.find(opt => opt.type === 'tada') ||
-                            transportOptions.find(opt => opt.provider === 'ComfortDelGro') ||
-                            transportOptions.find(opt => opt.type === 'own_car') ||
-                            transportOptions.find(opt => opt.type === 'gojek') ||
-                            transportOptions[0],
-              availableOptions: transportOptions.filter(opt => 
+              selectedOption: comfortOptions.find(opt => opt.type === 'grab') || 
+                            comfortOptions.find(opt => opt.type === 'tada') ||
+                            comfortOptions.find(opt => opt.provider === 'ComfortDelGro') ||
+                            comfortOptions.find(opt => opt.type === 'own_car') ||
+                            comfortOptions.find(opt => opt.type === 'gojek') ||
+                            comfortOptions[0],
+              availableOptions: comfortOptions.filter(opt => 
                 ['taxi', 'grab', 'tada', 'gojek', 'own_car'].includes(opt.type)
               )
             }
@@ -1058,8 +1061,8 @@ const Transport = () => {
                     return daySegments.map((segment, index) => {
                       // Find the actual segment index in the full routes array for comfort choices
                       const actualIndex = routes.comfort.findIndex(r => r.from === segment.from && r.to === segment.to);
-                      const currentChoice = comfortChoices[actualIndex];
-                      const displayOption = currentChoice?.selectedOption || segment.recommended;
+                       const currentChoice = comfortChoices[actualIndex];
+                       const displayOption = currentChoice?.selectedOption || segment.comfortChoice?.selectedOption || segment.recommended;
                       
                       return (
                         <div key={`${segment.from}-${segment.to}`} className="border border-border rounded-lg p-4 space-y-4">
