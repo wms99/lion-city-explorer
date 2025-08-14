@@ -794,7 +794,7 @@ const Transport = () => {
             </TabsTrigger>
             <TabsTrigger value="minimal_transfer" className="flex items-center space-x-2">
               <RouteIcon className="h-4 w-4" />
-              <span>Less Transfer</span>
+              <span>Less Transfer/Walking</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1089,7 +1089,7 @@ const Transport = () => {
                 <CardTitle className="flex items-center justify-between">
                   <span className="flex items-center">
                     <RouteIcon className="h-5 w-5 mr-2" />
-                    {dayRoutes.length > 1 ? `Day ${selectedDay} Less Transfer Route` : 'Less Transfer Route'}
+                    {dayRoutes.length > 1 ? `Day ${selectedDay} Less Transfer/Walking Route` : 'Less Transfer/Walking Route'}
                   </span>
                   <div className="flex items-center space-x-4 text-sm">
                     <div className="flex items-center space-x-1">
