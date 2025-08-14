@@ -33,6 +33,7 @@ interface ItineraryItem {
   name: string;
   category: string;
   addedAt: string;
+  day?: number;
 }
 
 interface TransportOption {
@@ -541,56 +542,113 @@ const Transport = () => {
   const generateDayRoutes = (attractionList: Attraction[]) => {
     console.log('Generating day routes for', attractionList.length, 'attractions');
     
-    // Simple day splitting logic - split into days of max 3-4 attractions each
-    const maxAttractionsPerDay = 3;
-    const days: DayRoute[] = [];
-    const today = new Date();
+    // Get the saved itinerary items to check if they have day assignments
+    const saved = JSON.parse(localStorage.getItem('singapore-itinerary') || '[]');
+    const itemsWithDays = saved.filter((item: ItineraryItem) => item.day);
     
-    // Split attractions into day groups
-    const dayGroups: Attraction[][] = [];
-    for (let i = 0; i < attractionList.length; i += maxAttractionsPerDay) {
-      const dayGroup = attractionList.slice(i, Math.min(i + maxAttractionsPerDay, attractionList.length));
-      if (dayGroup.length >= 2) { // Need at least 2 attractions to create transport routes
-        dayGroups.push(dayGroup);
-      }
-    }
-    
-    console.log('Day groups created:', dayGroups.length);
-    
-    // Create day routes for each group
-    dayGroups.forEach((dayAttractions, dayIndex) => {
-      const daySegments: RouteSegment[] = [];
+    if (itemsWithDays.length > 0) {
+      // Use existing day assignments from the itinerary
+      const dayGroups: { [day: number]: Attraction[] } = {};
+      const maxDay = Math.max(...itemsWithDays.map((item: ItineraryItem) => item.day || 1));
       
-      // Create segments for consecutive attractions in this day
-      for (let j = 0; j < dayAttractions.length - 1; j++) {
-        const fromAttraction = dayAttractions[j];
-        const toAttraction = dayAttractions[j + 1];
-        
-        // Find the corresponding segment in the main routes
-        const segmentIndex = routes.comfort.findIndex(segment => 
-          segment.from === fromAttraction.name && segment.to === toAttraction.name
-        );
-        
-        if (segmentIndex !== -1) {
-          daySegments.push(routes.comfort[segmentIndex]);
+      // Group attractions by day
+      itemsWithDays.forEach((item: ItineraryItem) => {
+        const attraction = attractionList.find(a => a.id === item.id);
+        if (attraction && item.day) {
+          if (!dayGroups[item.day]) {
+            dayGroups[item.day] = [];
+          }
+          dayGroups[item.day].push(attraction);
+        }
+      });
+      
+      // Create day routes based on itinerary days
+      const days: DayRoute[] = [];
+      const today = new Date();
+      
+      for (let dayNum = 1; dayNum <= maxDay; dayNum++) {
+        const dayAttractions = dayGroups[dayNum] || [];
+        if (dayAttractions.length >= 2) {
+          const daySegments: RouteSegment[] = [];
+          
+          // Create segments for consecutive attractions in this day
+          for (let j = 0; j < dayAttractions.length - 1; j++) {
+            const fromAttraction = dayAttractions[j];
+            const toAttraction = dayAttractions[j + 1];
+            
+            // Find the corresponding segment in the main routes
+            const segmentIndex = routes.comfort.findIndex(segment => 
+              segment.from === fromAttraction.name && segment.to === toAttraction.name
+            );
+            
+            if (segmentIndex !== -1) {
+              daySegments.push(routes.comfort[segmentIndex]);
+            }
+          }
+          
+          if (daySegments.length > 0) {
+            const dayDate = new Date(today.getTime() + (dayNum - 1) * 24 * 60 * 60 * 1000);
+            days.push({
+              day: dayNum,
+              date: dayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+              segments: daySegments
+            });
+          }
         }
       }
       
-      if (daySegments.length > 0) {
-        const dayDate = new Date(today.getTime() + dayIndex * 24 * 60 * 60 * 1000);
-        days.push({
-          day: dayIndex + 1,
-          date: dayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
-          segments: daySegments
-        });
+      console.log('Generated day routes from itinerary days:', days);
+      setDayRoutes(days);
+    } else {
+      // Fallback: Simple day splitting logic if no day assignments exist
+      const maxAttractionsPerDay = 3;
+      const days: DayRoute[] = [];
+      const today = new Date();
+      
+      // Split attractions into day groups
+      const dayGroups: Attraction[][] = [];
+      for (let i = 0; i < attractionList.length; i += maxAttractionsPerDay) {
+        const dayGroup = attractionList.slice(i, Math.min(i + maxAttractionsPerDay, attractionList.length));
+        if (dayGroup.length >= 2) { // Need at least 2 attractions to create transport routes
+          dayGroups.push(dayGroup);
+        }
       }
-    });
-    
-    console.log('Generated day routes:', days);
-    setDayRoutes(days);
+      
+      // Create day routes for each group
+      dayGroups.forEach((dayAttractions, dayIndex) => {
+        const daySegments: RouteSegment[] = [];
+        
+        // Create segments for consecutive attractions in this day
+        for (let j = 0; j < dayAttractions.length - 1; j++) {
+          const fromAttraction = dayAttractions[j];
+          const toAttraction = dayAttractions[j + 1];
+          
+          // Find the corresponding segment in the main routes
+          const segmentIndex = routes.comfort.findIndex(segment => 
+            segment.from === fromAttraction.name && segment.to === toAttraction.name
+          );
+          
+          if (segmentIndex !== -1) {
+            daySegments.push(routes.comfort[segmentIndex]);
+          }
+        }
+        
+        if (daySegments.length > 0) {
+          const dayDate = new Date(today.getTime() + dayIndex * 24 * 60 * 60 * 1000);
+          days.push({
+            day: dayIndex + 1,
+            date: dayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+            segments: daySegments
+          });
+        }
+      });
+      
+      console.log('Generated day routes using fallback logic:', days);
+      setDayRoutes(days);
+    }
     
     // Set selected day to 1 if we have multiple days
-    if (days.length > 0) {
+    if (dayRoutes.length > 0 || savedItems.length > 0) {
       setSelectedDay(1);
     }
   };
