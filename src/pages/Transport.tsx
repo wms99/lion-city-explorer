@@ -444,12 +444,16 @@ const Transport = () => {
     
     // Get the saved itinerary items to check if they have day assignments
     const saved = JSON.parse(localStorage.getItem('singapore-itinerary') || '[]');
-    const itemsWithDays = saved.filter((item: ItineraryItem) => item.day);
+    console.log('Saved itinerary items:', saved);
+    
+    const itemsWithDays = saved.filter((item: ItineraryItem) => item.day && item.day > 0);
+    console.log('Items with day assignments:', itemsWithDays);
     
     if (itemsWithDays.length > 0) {
       // Use existing day assignments from the itinerary
       const dayGroups: { [day: number]: Attraction[] } = {};
       const maxDay = Math.max(...itemsWithDays.map((item: ItineraryItem) => item.day || 1));
+      console.log('Max day found:', maxDay);
       
       // Group attractions by day
       itemsWithDays.forEach((item: ItineraryItem) => {
@@ -462,13 +466,17 @@ const Transport = () => {
         }
       });
       
+      console.log('Day groups:', dayGroups);
+      
       // Create day routes based on itinerary days
       const days: DayRoute[] = [];
       const today = new Date();
       
       for (let dayNum = 1; dayNum <= maxDay; dayNum++) {
         const dayAttractions = dayGroups[dayNum] || [];
-        if (dayAttractions.length >= 2) {
+        console.log(`Day ${dayNum} attractions:`, dayAttractions);
+        
+        if (dayAttractions.length >= 1) { // Changed from >= 2 to >= 1 to show days with single attractions
           const daySegments: RouteSegment[] = [];
           
           // Generate transport options directly for each day's route segments
@@ -506,64 +514,70 @@ const Transport = () => {
             });
           }
           
-          if (daySegments.length > 0) {
-            const dayDate = new Date(today.getTime() + (dayNum - 1) * 24 * 60 * 60 * 1000);
-            days.push({
-              day: dayNum,
-              date: dayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
-              segments: daySegments
-            });
-          }
+          const dayDate = new Date(today.getTime() + (dayNum - 1) * 24 * 60 * 60 * 1000);
+          days.push({
+            day: dayNum,
+            date: dayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+            segments: daySegments
+          });
         }
       }
       
       console.log('Generated day routes from itinerary days:', days);
       setDayRoutes(days);
     } else {
-      // Fallback: Simple day splitting logic if no day assignments exist
-      const maxAttractionsPerDay = 3;
+      // Fallback: Create simple day routes even if no day assignments exist
+      console.log('No day assignments found, creating fallback day routes');
       const days: DayRoute[] = [];
       const today = new Date();
       
-      // Split attractions into day groups
-      const dayGroups: Attraction[][] = [];
-      for (let i = 0; i < attractionList.length; i += maxAttractionsPerDay) {
-        const dayGroup = attractionList.slice(i, Math.min(i + maxAttractionsPerDay, attractionList.length));
-        if (dayGroup.length >= 2) { // Need at least 2 attractions to create transport routes
-          dayGroups.push(dayGroup);
-        }
-      }
-      
-      // Create day routes for each group
-      dayGroups.forEach((dayAttractions, dayIndex) => {
+      // Create a single day with all attractions for now
+      if (attractionList.length >= 2) {
         const daySegments: RouteSegment[] = [];
         
-        // Create segments for consecutive attractions in this day
-        for (let j = 0; j < dayAttractions.length - 1; j++) {
-          const fromAttraction = dayAttractions[j];
-          const toAttraction = dayAttractions[j + 1];
+        // Create segments for consecutive attractions
+        for (let j = 0; j < attractionList.length - 1; j++) {
+          const fromAttraction = attractionList[j];
+          const toAttraction = attractionList[j + 1];
           
-          // Find the corresponding segment in the main routes
-          const segmentIndex = routes.comfort.findIndex(segment => 
-            segment.from === fromAttraction.name && segment.to === toAttraction.name
+          const distance = calculateDistance(
+            fromAttraction.coordinates.lat, fromAttraction.coordinates.lng,
+            toAttraction.coordinates.lat, toAttraction.coordinates.lng
           );
           
-          if (segmentIndex !== -1) {
-            daySegments.push(routes.comfort[segmentIndex]);
-          }
-        }
-        
-        if (daySegments.length > 0) {
-          const dayDate = new Date(today.getTime() + dayIndex * 24 * 60 * 60 * 1000);
-          days.push({
-            day: dayIndex + 1,
-            date: dayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
-            segments: daySegments
+          const transportOptions = await generateTransportOptions(
+            distance, 
+            fromAttraction.name, 
+            toAttraction.name,
+            fromAttraction.coordinates,
+            toAttraction.coordinates
+          );
+          
+          daySegments.push({
+            from: fromAttraction.name,
+            to: toAttraction.name,
+            fromCoords: fromAttraction.coordinates,
+            toCoords: toAttraction.coordinates,
+            distance,
+            transportOptions,
+            recommended: transportOptions[0] || {
+              type: 'walk',
+              duration: `${Math.ceil(distance * 12)} min`,
+              cost: 'Free',
+              description: 'Walk directly',
+              steps: [`Walk from ${fromAttraction.name} to ${toAttraction.name}`]
+            }
           });
         }
-      });
+        
+        days.push({
+          day: 1,
+          date: today.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+          segments: daySegments
+        });
+      }
       
-      console.log('Generated day routes using fallback logic:', days);
+      console.log('Generated fallback day routes:', days);
       setDayRoutes(days);
     }
     
@@ -649,7 +663,7 @@ const Transport = () => {
 
           <TabsContent value="budget" className="space-y-4">
             {/* Day Filter Card */}
-            {dayRoutes.length > 1 && (
+            {dayRoutes.length > 0 && (
               <Card className="shadow-card">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg">Select Day</CardTitle>
@@ -748,7 +762,7 @@ const Transport = () => {
 
           <TabsContent value="comfort" className="space-y-4">
             {/* Day Filter Card */}
-            {dayRoutes.length > 1 && (
+            {dayRoutes.length > 0 && (
               <Card className="shadow-card">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg">Select Day</CardTitle>
@@ -909,7 +923,7 @@ const Transport = () => {
 
           <TabsContent value="minimal_transfer" className="space-y-4">
             {/* Day Filter Card */}
-            {dayRoutes.length > 1 && (
+            {dayRoutes.length > 0 && (
               <Card className="shadow-card">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg">Select Day</CardTitle>
