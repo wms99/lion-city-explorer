@@ -522,6 +522,31 @@ const Itinerary = () => {
       days.push(daySchedule);
     }
 
+    // Save day assignments back to localStorage for Transport tab sync
+    const updatedItems: ItineraryItem[] = [];
+    days.forEach(daySchedule => {
+      daySchedule.items.forEach(item => {
+        updatedItems.push({
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          addedAt: item.addedAt,
+          suggestedDuration: item.suggestedDuration,
+          optimalTimeSlot: item.optimalTimeSlot,
+          visitType: item.visitType,
+          day: daySchedule.day
+        });
+      });
+    });
+
+    // Update localStorage with day assignments
+    localStorage.setItem('singapore-itinerary', JSON.stringify(updatedItems));
+    // Update the component state as well
+    setSavedItems(updatedItems);
+    
+    // Dispatch event to notify Transport tab about changes
+    window.dispatchEvent(new CustomEvent('itinerary-updated'));
+
     return days;
   };
 

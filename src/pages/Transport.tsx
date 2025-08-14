@@ -507,24 +507,27 @@ const Transport = () => {
     const saved = JSON.parse(localStorage.getItem('singapore-itinerary') || '[]');
     console.log('Saved itinerary items:', saved);
     
-    // Get all unique days from the saved itinerary
-    const allDays = new Set<number>();
-    saved.forEach((item: ItineraryItem) => {
-      if (item.day) {
-        allDays.add(item.day);
-      }
+    // Create enhanced attraction list with proper day assignments from localStorage
+    const enhancedAttractions = attractionList.map(attraction => {
+      const savedItem = saved.find((item: ItineraryItem) => item.id === attraction.id);
+      return {
+        ...attraction,
+        day: savedItem?.day || 1, // Use saved day assignment or default to 1
+        order: attraction.order
+      };
     });
     
-    // If no days are assigned, create a default day 1
-    if (allDays.size === 0 && attractionList.length > 0) {
-      allDays.add(1);
-    }
+    // Get all unique days from the enhanced attraction list
+    const allDays = new Set<number>();
+    enhancedAttractions.forEach((attraction) => {
+      allDays.add(attraction.day);
+    });
     
     // Group attractions by day, maintaining the order within each day
-    const dayGroups: { [day: number]: (Attraction & { day?: number; order: number })[] } = {};
+    const dayGroups: { [day: number]: (Attraction & { day: number; order: number })[] } = {};
     
-    attractionList.forEach((attraction) => {
-      const day = attraction.day || 1; // Default to day 1 if no day assigned
+    enhancedAttractions.forEach((attraction) => {
+      const day = attraction.day;
       if (!dayGroups[day]) {
         dayGroups[day] = [];
       }
